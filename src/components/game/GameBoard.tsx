@@ -239,6 +239,7 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
       tilesContainerRef.current = null;
       currentTileSprites.clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardSize]); // Recreate Pixi app only when boardSize changes
 
   // Re-render tiles on state change
