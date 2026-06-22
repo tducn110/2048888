@@ -99,7 +99,7 @@ export default function Tile({ tile, cellSize, gap, padding }: TileProps) {
   );
 }
 
-function MascotSVG({ value, color }: { value: number; color: string }) {
+export function MascotSVG({ value, color }: { value: number; color: string }) {
   const c = color;
   const ops: Record<number, ReactElement> = {
     2: (
