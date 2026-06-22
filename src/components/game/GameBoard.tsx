@@ -239,7 +239,7 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
       tilesContainerRef.current = null;
       currentTileSprites.clear();
     };
-  }, [boardSize, tiles]); // Include tiles in dependency array to avoid warning, though it doesn't really need to be here if we handle it correctly. Actually, let's keep it clean. 
+  }, [boardSize]); // Recreate Pixi app only when boardSize changes
 
   // Re-render tiles on state change
   useEffect(() => {
