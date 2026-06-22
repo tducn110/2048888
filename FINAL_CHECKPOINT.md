@@ -47,3 +47,15 @@
 
 ## 9. Exact Next Recommended Step
 **Add ESLint** to establish static analysis and prevent future regressions.
+
+## 10. ESLint setup pass
+- **Packages installed:** `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`.
+- **Lint script added:** `"lint": "eslint ."` in `package.json`.
+- **Files changed:**
+  - `eslint.config.js` (created)
+  - `package.json` (updated)
+  - `src/lib/game2048.test.ts` (fixed unused `tiles` variable)
+- **Lint result:** ✅ Passed (0 errors, 0 warnings after fixing the single unused var).
+- **Build result:** ✅ Passed (`npm run build` completed successfully).
+- **Test result:** ✅ Passed (`npm test` 17/17 tests passing).
+- **Warnings intentionally kept:** `no-unused-vars` and `react-refresh/only-export-components` are configured as `warn` to be practical.

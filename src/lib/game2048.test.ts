@@ -160,15 +160,7 @@ describe("canMove", () => {
   });
 
   it("returns true when adjacent tiles can merge", () => {
-    const tiles = fromGrid([
-      [2, 4,   8,  16],
-      [32, 64, 128, 256],
-      [512, 1024, 2048, 4096],
-      [8192, 2, 4, 2],
-    ]);
-    // bottom row: 2 4 2 — no adjacent equal horizontally, check vertical
-    // but row 3 col 3: 2, row 2 col 3: 4096 — no match
-    // This board is likely stuck — let's use a board that CAN merge
+    // This board has adjacent mergeable tiles in the bottom row
     const mergeable = fromGrid([
       [2, 4,   8,  16],
       [32, 64, 128, 256],
