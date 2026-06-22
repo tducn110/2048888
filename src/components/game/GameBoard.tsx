@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { TileCell, Direction } from "@/types";
 import { Application, Container, Graphics, Text } from "pixi.js";
 import { getTileConfig } from "@/constants/tileConfig";
@@ -23,10 +23,17 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
   const [boardSize, setBoardSize] = useState(320);
   const onSwipeRef = useRef(onSwipe);
 
-  // Keep onSwipe ref updated to avoid re-binding event listeners
+  // Keep refs updated to avoid re-binding or exhaustive-deps triggers
+  const onSwipeRef = useRef(onSwipe);
+  const tilesRef = useRef(tiles);
+
   useEffect(() => {
     onSwipeRef.current = onSwipe;
   }, [onSwipe]);
+
+  useEffect(() => {
+    tilesRef.current = tiles;
+  }, [tiles]);
 
   // Resize observer for board Size
   useEffect(() => {
@@ -41,7 +48,7 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
     return () => ro.disconnect();
   }, []);
 
-  const renderTiles = (currentTiles: TileCell[], cellSize: number) => {
+  const renderTiles = useCallback((currentTiles: TileCell[], cellSize: number) => {
     if (!tilesContainerRef.current) return;
     const container = tilesContainerRef.current;
     const map = tileSpritesRef.current;
@@ -153,7 +160,7 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
 
     // sort children by zIndex
     container.children.sort((a, b) => a.zIndex - b.zIndex);
-  };
+  }, []);
 
   // Initialize Pixi App
   useEffect(() => {
@@ -222,7 +229,7 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
       tilesContainerRef.current = tilesContainer;
       
       // Trigger initial render
-      renderTiles(tiles, cellSize);
+      renderTiles(tilesRef.current, cellSize);
     };
 
     initPixi();
@@ -239,15 +246,14 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
       tilesContainerRef.current = null;
       currentTileSprites.clear();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardSize]); // Recreate Pixi app only when boardSize changes
+  }, [boardSize, renderTiles]); // Recreate Pixi app only when boardSize changes
 
   // Re-render tiles on state change
   useEffect(() => {
     if (!pixiAppRef.current || !tilesContainerRef.current || boardSize === 0) return;
     const cellSize = (boardSize - 2 * PADDING - (GRID_SIZE - 1) * GAP) / GRID_SIZE;
     renderTiles(tiles, cellSize);
-  }, [tiles, boardSize]);
+  }, [tiles, boardSize, renderTiles]);
 
   // Swipe logic
   const touchStart = useRef<{ x: number; y: number } | null>(null);
