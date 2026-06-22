@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { TileCell, Direction } from "@/types";
-import { Application, Container, Graphics, Text, Texture, Sprite, TilingSprite } from "pixi.js";
+import { Application, Container, Graphics, Text } from "pixi.js";
 import { getTileConfig } from "@/constants/tileConfig";
-import { renderToString } from "react-dom/server";
-import { MascotSVG } from "./Tile";
 import gsap from "gsap";
 
 const GAP = 10;
@@ -15,32 +13,7 @@ interface GameBoardProps {
   onSwipe: (dir: Direction) => void;
 }
 
-const mascotTextureCache: Record<number, Texture> = {};
 
-function applyMascotTexture(value: number, color: string, sprite: Sprite) {
-  if (mascotTextureCache[value]) {
-    sprite.texture = mascotTextureCache[value];
-    return;
-  }
-  try {
-    const svgString = renderToString(<MascotSVG value={value} color={color} />);
-    if (svgString.includes('<svg')) {
-      const uri = `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
-      const img = new Image();
-      img.onload = () => {
-        const texture = Texture.from(img);
-        mascotTextureCache[value] = texture;
-        sprite.texture = texture;
-      };
-      img.src = uri;
-    }
-  } catch (e) {
-    console.error("Failed to render MascotSVG to string:", e);
-  }
-}
-
-const SKETCH_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E";
-let sketchTexCache: Texture | null = null;
 
 export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -105,39 +78,7 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
         bg.stroke({ color: 0x2a2418, alpha: 0.18, width: 2 });
         tileContainer.addChild(bg);
 
-        const sketch = new TilingSprite({
-          texture: sketchTexCache || Texture.EMPTY,
-          width: cellSize,
-          height: cellSize
-        });
-        if (!sketchTexCache) {
-          const img = new Image();
-          img.onload = () => {
-            if (!sketchTexCache) sketchTexCache = Texture.from(img);
-            sketch.texture = sketchTexCache;
-          };
-          img.src = SKETCH_URI;
-        }
-        sketch.alpha = 1; // opacity is baked into SVG or handled by tiling sprite
-        // Clip sketch to rounded rect
-        const mask = new Graphics();
-        mask.roundRect(0, 0, cellSize, cellSize, 16);
-        mask.fill(0xffffff);
-        sketch.mask = mask;
-        tileContainer.addChild(sketch);
-        tileContainer.addChild(mask);
 
-        // Mascot
-        if (cfg.hasMascot && cellSize >= 60) {
-          const mascot = new Sprite(Texture.EMPTY);
-          mascot.width = cellSize * 0.52;
-          mascot.height = cellSize * 0.42;
-          mascot.anchor.set(0.5);
-          mascot.x = cellSize / 2;
-          mascot.y = cellSize / 2 - 10;
-          applyMascotTexture(tile.value, cfg.colorText, mascot);
-          tileContainer.addChild(mascot);
-        }
 
         // Label
         if (cellSize >= 72) {
@@ -171,7 +112,7 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
         });
         text.anchor.set(0.5);
         text.x = cellSize / 2;
-        text.y = cellSize / 2 + (cfg.hasMascot && cellSize >= 60 ? 15 : 0);
+        text.y = cellSize / 2;
         tileContainer.addChild(text);
 
         container.addChild(tileContainer);
@@ -305,7 +246,6 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
     if (!pixiAppRef.current || !tilesContainerRef.current || boardSize === 0) return;
     const cellSize = (boardSize - 2 * PADDING - (GRID_SIZE - 1) * GAP) / GRID_SIZE;
     renderTiles(tiles, cellSize);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tiles, boardSize]);
 
   // Swipe logic
