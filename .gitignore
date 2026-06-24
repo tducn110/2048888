@@ -34,6 +34,11 @@ dist-ssr/
 # Testing
 coverage/
 
+# Local tool/runtime state
+venv/
+.venv/
+.mimocode/
+
 # Vite output
 dist/
 build/

@@ -55,7 +55,7 @@ function slideRow(
       accumScore.value += newVal;
       result.push({
         ...cells[i],
-        id: genId(),
+        id: cells[i].id,
         value: newVal,
         isMerged: true,
         isNew: false,
@@ -122,7 +122,7 @@ export function addRandomTile(tiles: TileCell[]): TileCell[] {
   const pos = empty[Math.floor(Math.random() * empty.length)];
   const value = Math.random() < 0.9 ? 2 : 4;
 
-  const cleared = tiles.map((t) => ({ ...t, isNew: false, isMerged: false }));
+  const cleared = tiles.map((t) => ({ ...t, isNew: false }));
   return [
     ...cleared,
     { id: genId(), value, row: pos.row, col: pos.col, isNew: true, isMerged: false },

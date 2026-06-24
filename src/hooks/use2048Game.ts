@@ -17,7 +17,9 @@ type Action =
   | { type: "MOVE"; direction: Direction }
   | { type: "RESET" }
   | { type: "UNDO" }
-  | { type: "CONTINUE" };
+  | { type: "CONTINUE" }
+  | { type: "REVIVE" }
+  | { type: "DOUBLE_SCORE" };
 
 function makeFreshBoard(): BoardState {
   return {
@@ -66,6 +68,29 @@ function reducer(state: State, action: Action): State {
         },
       };
     }
+    case "REVIVE": {
+      if (state.current.status !== "lost") return state;
+      // Remove the 4 lowest value tiles to make room
+      const sortedTiles = [...state.current.tiles].sort((a, b) => a.value - b.value);
+      const toKeep = sortedTiles.slice(4); // remove lowest 4
+      return {
+        ...state,
+        current: {
+          ...state.current,
+          tiles: toKeep,
+          status: "playing",
+        }
+      };
+    }
+    case "DOUBLE_SCORE": {
+      return {
+        ...state,
+        current: {
+          ...state.current,
+          score: state.current.score * 2,
+        }
+      };
+    }
     case "UNDO": {
       // Allow undo even after lost — casual game should let the player recover
       if (!state.previous) return state;
@@ -104,6 +129,8 @@ export function use2048Game() {
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
   const undo = useCallback(() => dispatch({ type: "UNDO" }), []);
   const continueGame = useCallback(() => dispatch({ type: "CONTINUE" }), []);
+  const revive = useCallback(() => dispatch({ type: "REVIVE" }), []);
+  const doubleScore = useCallback(() => dispatch({ type: "DOUBLE_SCORE" }), []);
 
   // Keyboard
   useEffect(() => {
@@ -142,5 +169,7 @@ export function use2048Game() {
     reset,
     undo,
     continueGame,
+    revive,
+    doubleScore,
   };
 }

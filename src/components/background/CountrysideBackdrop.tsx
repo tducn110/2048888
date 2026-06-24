@@ -1,4 +1,62 @@
-export default function CountrysideBackdrop() {
+export default function CountrysideBackdrop({ themeId = 1 }: { themeId?: number }) {
+  // Define themes
+  const themes = {
+    1: { // Peanut
+      sky: ["#d4e8f0", "#eee4cf", "#f5ecd7"],
+      sun: ["#f8d870", "#f8c840"],
+      mountain1: ["#b8cfd8", "#9dbbc6"],
+      mountain2: ["#c8d8a8", "#a8c888"],
+      field: ["#c8d68a", "#a8c068"],
+      mountain1Fill: "#e6d8b2",
+      mountain2Fill: "#c8d68a",
+      riceField: "#b8cc78",
+      riceField2: "#a8bc68",
+      fieldLines: "#88a848",
+      skyFilter: "" // No filter
+    },
+    2: { // Yellow Dog (Golden/Sunset)
+      sky: ["#ffe0b2", "#ffd54f", "#ffca28"],
+      sun: ["#ff6f00", "#ff8f00"],
+      mountain1: ["#ffb74d", "#ff9800"],
+      mountain2: ["#ffcc80", "#ffa726"],
+      field: ["#ffd54f", "#ffca28"],
+      mountain1Fill: "#e6c27a",
+      mountain2Fill: "#ffd54f",
+      riceField: "#ffca28",
+      riceField2: "#ffb300",
+      fieldLines: "#ff8f00",
+      skyFilter: ""
+    },
+    3: { // Bamboo Gift (Green/Forest)
+      sky: ["#e0f2f1", "#b2dfdb", "#80cbc4"],
+      sun: ["#aed581", "#8bc34a"],
+      mountain1: ["#81c784", "#66bb6a"],
+      mountain2: ["#aed581", "#8bc34a"],
+      field: ["#81c784", "#66bb6a"],
+      mountain1Fill: "#aed581",
+      mountain2Fill: "#81c784",
+      riceField: "#66bb6a",
+      riceField2: "#4caf50",
+      fieldLines: "#388e3c",
+      skyFilter: ""
+    },
+    4: { // Orange Tabby (Autumn/Warm)
+      sky: ["#ffccbc", "#ffab91", "#ff8a65"],
+      sun: ["#ff7043", "#f4511e"],
+      mountain1: ["#ff8a65", "#ff7043"],
+      mountain2: ["#ffab91", "#ff8a65"],
+      field: ["#ffa726", "#ff9800"],
+      mountain1Fill: "#ffb74d",
+      mountain2Fill: "#ffa726",
+      riceField: "#ff9800",
+      riceField2: "#fb8c00",
+      fieldLines: "#f57c00",
+      skyFilter: ""
+    }
+  };
+
+  const t = themes[themeId as keyof typeof themes] || themes[1];
+
   return (
     <div
       aria-hidden="true"
@@ -7,7 +65,7 @@ export default function CountrysideBackdrop() {
         inset: 0,
         zIndex: 0,
         overflow: "hidden",
-        pointerEvents: "none",
+        pointerEvents: "none"
       }}
     >
       <svg
@@ -18,21 +76,21 @@ export default function CountrysideBackdrop() {
       >
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#d4e8f0" />
-            <stop offset="60%" stopColor="#eee4cf" />
-            <stop offset="100%" stopColor="#f5ecd7" />
+            <stop offset="0%" stopColor={t.sky[0]} />
+            <stop offset="60%" stopColor={t.sky[1]} />
+            <stop offset="100%" stopColor={t.sky[2]} />
           </linearGradient>
           <linearGradient id="mountain1" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#b8cfd8" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#9dbbc6" stopOpacity="0.4" />
+            <stop offset="0%" stopColor={t.mountain1[0]} stopOpacity="0.6" />
+            <stop offset="100%" stopColor={t.mountain1[1]} stopOpacity="0.4" />
           </linearGradient>
           <linearGradient id="mountain2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c8d8a8" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#a8c888" stopOpacity="0.3" />
+            <stop offset="0%" stopColor={t.mountain2[0]} stopOpacity="0.5" />
+            <stop offset="100%" stopColor={t.mountain2[1]} stopOpacity="0.3" />
           </linearGradient>
           <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c8d68a" />
-            <stop offset="100%" stopColor="#a8c068" />
+            <stop offset="0%" stopColor={t.field[0]} />
+            <stop offset="100%" stopColor={t.field[1]} />
           </linearGradient>
           <filter id="sketch" x="-2%" y="-2%" width="104%" height="104%">
             <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" result="noise" />
@@ -44,23 +102,23 @@ export default function CountrysideBackdrop() {
         <rect width="1440" height="900" fill="url(#sky)" />
 
         {/* Sun / warm glow top-right */}
-        <circle cx="1200" cy="120" r="70" fill="#f8d870" opacity="0.3" />
-        <circle cx="1200" cy="120" r="50" fill="#f8c840" opacity="0.25" />
+        <circle cx="1200" cy="120" r="70" fill={t.sun[0]} opacity="0.3" />
+        <circle cx="1200" cy="120" r="50" fill={t.sun[1]} opacity="0.25" />
 
-        {/* Distant mountains layer 1 — bezier mềm, fill e6d8b2 alpha 0.6, stroke pencil-gray */}
+        {/* Distant mountains layer 1 */}
         <path
           d="M0 440 Q180 280 360 340 Q540 280 720 340 Q900 260 1080 330 Q1260 270 1440 340 L1440 560 L0 560 Z"
-          fill="#e6d8b2"
+          fill={t.mountain1Fill}
           fillOpacity="0.6"
           stroke="#8a7d65"
           strokeWidth="1"
           strokeOpacity="0.3"
         />
 
-        {/* Distant mountains layer 2 — lighter hill */}
+        {/* Distant mountains layer 2 */}
         <path
           d="M0 500 Q200 380 400 420 Q600 370 800 420 Q1000 360 1200 410 Q1320 370 1440 420 L1440 580 L0 580 Z"
-          fill="#c8d68a"
+          fill={t.mountain2Fill}
           fillOpacity="0.5"
           stroke="#8a7d65"
           strokeWidth="0.8"
@@ -70,12 +128,12 @@ export default function CountrysideBackdrop() {
         {/* Rice fields */}
         <path
           d="M0 580 Q360 540 720 570 Q1080 540 1440 570 L1440 700 L0 700 Z"
-          fill="#b8cc78"
+          fill={t.riceField}
           opacity="0.7"
         />
         <path
           d="M0 630 Q400 600 800 625 Q1100 600 1440 625 L1440 900 L0 900 Z"
-          fill="#a8bc68"
+          fill={t.riceField2 || "#a8bc68"}
           opacity="0.6"
         />
 
@@ -84,7 +142,7 @@ export default function CountrysideBackdrop() {
           <path
             key={i}
             d={`M0 ${y} Q360 ${y - 8} 720 ${y} Q1080 ${y + 8} 1440 ${y}`}
-            stroke="#88a848"
+            stroke={t.fieldLines || "#88a848"}
             strokeWidth="1.2"
             fill="none"
             opacity="0.4"

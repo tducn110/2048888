@@ -76,7 +76,7 @@ function ScoreCard({
           fontWeight: 700,
           letterSpacing: "0.1em",
           textTransform: "uppercase",
-          color: highlight ? "rgba(255,248,238,0.8)" : "var(--pencil-gray)",
+          color: highlight ? "var(--ink-dark)" : "var(--ink-dark)",
         }}
       >
         {label}
