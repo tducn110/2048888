@@ -30,6 +30,7 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
         gap: 18,
         position: "relative",
         width: "100%",
+        maxHeight: "90vh",
         boxSizing: "border-box",
         textAlign: "center"
       }}
@@ -64,8 +65,8 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
         </div>
       </div>
 
-      <section style={{ display: "flex", flexDirection: "column", gap: 10, textAlign: "left" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <section style={{ display: "flex", flexDirection: "column", gap: 10, textAlign: "left", flex: 1, minHeight: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Trophy size={19} color="var(--orange-cta-edge)" />
             <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.2, color: "var(--ink-dark)", fontWeight: 800 }}>
@@ -77,7 +78,7 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
           </span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, overflowY: "auto", paddingRight: 4 }}>
           {topEntries.map((entry) => (
             <RankingRow key={`${entry.name}-${entry.rank}`} entry={entry} highlight={entry.isLocal} />
           ))}
@@ -96,6 +97,7 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
             borderRadius: 16,
             padding: 12,
             boxShadow: "0 2px 0 rgba(255,255,255,0.5) inset",
+            flexShrink: 0
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 800, color: "var(--orange-cta-edge)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -105,7 +107,7 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
         </section>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
         <Button onClick={onPlay} size="lg" variant="primary">
           ▶ Chơi Ngay
         </Button>
