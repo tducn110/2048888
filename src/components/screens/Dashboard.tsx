@@ -9,10 +9,9 @@ interface DashboardProps {
   bestScore: number;
   stats: LocalStats;
   onPlay: () => void;
-  onLogout: () => void;
 }
 
-export default function Dashboard({ username, bestScore, stats, onPlay, onLogout }: DashboardProps) {
+export default function Dashboard({ username, bestScore, stats, onPlay }: DashboardProps) {
   const { topEntries, currentPlayer } = buildLeaderboardModel(stats, username || "Người chơi");
   const playerInTopTen = topEntries.find((entry) => entry.isLocal) ?? null;
   const playerRow = playerInTopTen ?? currentPlayer;
@@ -27,7 +26,7 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
         boxShadow: "0 14px 40px rgba(42,36,24,0.18), 0 2px 0 rgba(255,255,255,0.6) inset",
         display: "flex",
         flexDirection: "column",
-        gap: 18,
+        gap: 14,
         position: "relative",
         width: "100%",
         maxHeight: "90vh",
@@ -35,32 +34,20 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
         textAlign: "center"
       }}
     >
-      <h1
-        style={{
-          fontFamily: "'Be Vietnam Pro', sans-serif",
-          fontWeight: 800,
-          fontSize: "clamp(24px, 5vw, 32px)",
-          color: "var(--ink-dark)",
-          margin: 0,
-          lineHeight: 1.2,
-        }}
-      >
-        Xin chào, {username}!
-      </h1>
-      
       <div style={{
         background: "rgba(138,125,101,0.1)",
-        padding: "24px",
-        borderRadius: 16,
+        padding: "17px 20px",
+        borderRadius: 14,
         display: "flex",
         flexDirection: "column",
-        gap: 8
+        alignItems: "center",
+        gap: 6
       }}>
-        <div style={{ fontSize: 14, color: "var(--pencil-gray)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Kỷ Lục Của Bạn</div>
-        <div style={{ fontSize: 40, fontWeight: 800, color: "var(--orange-cta-edge)", fontFamily: "'Be Vietnam Pro', sans-serif" }}>
+        <div style={{ fontSize: 12, color: "var(--pencil-gray)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Kỷ Lục Của Bạn</div>
+        <div style={{ fontSize: 32, lineHeight: 1.05, fontWeight: 800, color: "var(--orange-cta-edge)", fontFamily: "'Be Vietnam Pro', sans-serif" }}>
           {bestScore.toLocaleString("vi-VN")}
         </div>
-        <div style={{ fontSize: 12, color: "var(--ink-dark)", fontWeight: 800 }}>
+        <div style={{ fontSize: 11, color: "var(--ink-dark)", fontWeight: 800 }}>
           Danh hiệu: {getRank(bestScore)}
         </div>
       </div>
@@ -109,10 +96,7 @@ export default function Dashboard({ username, bestScore, stats, onPlay, onLogout
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
         <Button onClick={onPlay} size="lg" variant="primary">
-          ▶ Chơi Ngay
-        </Button>
-        <Button onClick={onLogout} size="md" variant="ghost">
-          Đăng xuất
+          ▶ Chơi tiếp
         </Button>
       </div>
     </div>

@@ -24,11 +24,6 @@ export default function App() {
     setScreen("dashboard");
   };
 
-  const handleLogout = () => {
-    setUsername("");
-    setScreen("login");
-  };
-
   return (
     <div style={{
       height: "100dvh",
@@ -50,7 +45,7 @@ export default function App() {
         position: "relative",
         zIndex: 1,
         width: "100%",
-        maxWidth: 460,
+        maxWidth: screen === "dashboard" ? 520 : 460,
         padding: "20px",
         boxSizing: "border-box",
         display: "flex",
@@ -76,7 +71,6 @@ export default function App() {
               setBgId((current) => getNextGameThemeId(current));
               setScreen("game");
             }} 
-            onLogout={handleLogout} 
           />
         )}
 
