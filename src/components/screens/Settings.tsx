@@ -1,16 +1,15 @@
-import { useState } from "react";
 import Button from "@/components/ui/Button";
-import { Settings as SettingsIcon, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
+import { Music, Settings as SettingsIcon, Volume2, VolumeX } from "lucide-react";
 
 interface SettingsProps {
-  soundEnabled: boolean;
-  onSoundChange: (enabled: boolean) => void;
+  musicEnabled: boolean;
+  sfxEnabled: boolean;
+  onMusicChange: (enabled: boolean) => void;
+  onSfxChange: (enabled: boolean) => void;
   onBack: () => void;
 }
 
-export default function Settings({ soundEnabled, onSoundChange, onBack }: SettingsProps) {
-  const [notifications, setNotifications] = useState(true);
-
+export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSfxChange, onBack }: SettingsProps) {
   return (
     <div
       style={{
@@ -53,15 +52,15 @@ export default function Settings({ soundEnabled, onSoundChange, onBack }: Settin
           borderRadius: 16
         }}>
           <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8 }}>
-            {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-            Âm thanh
+            {musicEnabled ? <Music size={20} /> : <VolumeX size={20} />}
+            Nhạc nền
           </div>
           <Button 
-            variant={soundEnabled ? "primary" : "secondary"} 
+            variant={musicEnabled ? "primary" : "secondary"} 
             size="sm" 
-            onClick={() => onSoundChange(!soundEnabled)}
+            onClick={() => onMusicChange(!musicEnabled)}
           >
-            {soundEnabled ? "Bật" : "Tắt"}
+            {musicEnabled ? "Bật" : "Tắt"}
           </Button>
         </div>
 
@@ -74,15 +73,15 @@ export default function Settings({ soundEnabled, onSoundChange, onBack }: Settin
           borderRadius: 16
         }}>
           <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8 }}>
-            {notifications ? <Bell size={20} /> : <BellOff size={20} />}
-            Thông báo
+            {sfxEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            Hiệu ứng âm thanh
           </div>
           <Button 
-            variant={notifications ? "primary" : "secondary"} 
+            variant={sfxEnabled ? "primary" : "secondary"} 
             size="sm" 
-            onClick={() => setNotifications(!notifications)}
+            onClick={() => onSfxChange(!sfxEnabled)}
           >
-            {notifications ? "Bật" : "Tắt"}
+            {sfxEnabled ? "Bật" : "Tắt"}
           </Button>
         </div>
       </div>

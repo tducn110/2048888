@@ -12,7 +12,7 @@ const SFX_SOURCES = {
 
 export type GameSfx = keyof typeof SFX_SOURCES;
 
-export function useGameAudio(enabled: boolean) {
+export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const sfxRef = useRef<Partial<Record<GameSfx, HTMLAudioElement>>>({});
   const unlockedRef = useRef(false);
@@ -36,7 +36,7 @@ export function useGameAudio(enabled: boolean) {
   }, []);
 
   const startMusic = useCallback(() => {
-    if (!enabled) return;
+    if (!musicEnabled) return;
 
     if (!musicRef.current) {
       const music = new Audio(MUSIC_SRC);
@@ -51,18 +51,18 @@ export function useGameAudio(enabled: boolean) {
     music.play().catch(() => {
       // Browser autoplay policy can still reject until a trusted user gesture.
     });
-  }, [enabled]);
+  }, [musicEnabled]);
 
   useEffect(() => {
     const music = musicRef.current;
     if (!music) return;
 
-    if (enabled && unlockedRef.current) {
+    if (musicEnabled && unlockedRef.current) {
       startMusic();
     } else {
       music.pause();
     }
-  }, [enabled, startMusic]);
+  }, [musicEnabled, startMusic]);
 
   useEffect(() => {
     const unlock = () => {
@@ -81,7 +81,7 @@ export function useGameAudio(enabled: boolean) {
 
   const playSfx = useCallback(
     (name: GameSfx) => {
-      if (!enabled) return;
+      if (!sfxEnabled) return;
 
       const source = sfxRef.current[name];
       if (!source) return;
@@ -92,7 +92,7 @@ export function useGameAudio(enabled: boolean) {
         // Ignore user-agent audio gating for noncritical effects.
       });
     },
-    [enabled]
+    [sfxEnabled]
   );
 
   return { playSfx };

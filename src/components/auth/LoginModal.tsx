@@ -122,7 +122,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           {mode === "login" && (
             <div style={{ textAlign: "right" }}>
               <a href="#" style={{ fontSize: 12, color: "var(--orange-cta)", fontWeight: 600, textDecoration: "none" }}>
-                {copy.forgotPw}
+                {AUTH_CONTENT.login.forgotPw}
               </a>
             </div>
           )}

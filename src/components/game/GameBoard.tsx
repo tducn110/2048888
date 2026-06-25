@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { TileCell, Direction } from "@/types";
 import { Pixi2048Renderer } from "./Pixi2048Renderer";
 
 interface GameBoardProps {
   tiles: TileCell[];
   onSwipe: (dir: Direction) => void;
+  background: string;
 }
 
-export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
+export default function GameBoard({ tiles, onSwipe, background }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Pixi2048Renderer | null>(null);
 
@@ -128,10 +129,10 @@ export default function GameBoard({ tiles, onSwipe }: GameBoardProps) {
         position: "relative",
         width: "100%",
         aspectRatio: "1 / 1",
-        background: "rgba(42,36,24,0.08)",
-        borderRadius: 20,
+        background,
+        borderRadius: 12,
         boxSizing: "border-box",
-        border: "2px solid rgba(42,36,24,0.12)",
+        border: "none",
         touchAction: "none",
         overscrollBehavior: "contain",
         userSelect: "none",

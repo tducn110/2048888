@@ -1,12 +1,12 @@
-import { Suspense, lazy, useState } from "react";
+import { useState } from "react";
 import Game2048 from "@/components/game/Game2048";
 import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
 import { useLocalStats } from "@/hooks/useLocalStats";
-
-const Login = lazy(() => import("@/components/screens/Login"));
-const Dashboard = lazy(() => import("@/components/screens/Dashboard"));
-const Leaderboards = lazy(() => import("@/components/screens/Leaderboards"));
-const Settings = lazy(() => import("@/components/screens/Settings"));
+import Login from "@/components/screens/Login";
+import Dashboard from "@/components/screens/Dashboard";
+import Leaderboards from "@/components/screens/Leaderboards";
+import Settings from "@/components/screens/Settings";
+import { getNextGameThemeId } from "@/components/game/gameThemes";
 
 type Screen = "login" | "dashboard" | "game" | "leaderboards" | "settings";
 
@@ -15,7 +15,9 @@ export default function App() {
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
   const [screen, setScreen] = useState<Screen>("game");
   const [username, setUsername] = useState("");
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [sfxEnabled, setSfxEnabled] = useState(true);
+  const keepGameMounted = screen === "game" || screen === "settings" || screen === "leaderboards";
 
   const handleLogin = (name: string) => {
     setUsername(name);
@@ -31,7 +33,8 @@ export default function App() {
     <div style={{
       height: "100dvh",
       width: "100vw",
-      overflow: "hidden",
+      overflowX: "hidden",
+      overflowY: "auto",
       background: "var(--rice-paper)",
       fontFamily: "'Be Vietnam Pro', sans-serif",
       display: "flex",
@@ -54,12 +57,11 @@ export default function App() {
         flexDirection: "column",
         gap: 20,
       }}>
-        <Suspense fallback={null}>
         {screen === "login" && (
           <Login 
             onLogin={handleLogin} 
             onPlayGuest={() => {
-              setBgId(Math.floor(Math.random() * 4) + 1);
+              setBgId((current) => getNextGameThemeId(current));
               setScreen("game");
             }} 
           />
@@ -67,50 +69,53 @@ export default function App() {
         
         {screen === "dashboard" && (
           <Dashboard 
-            username={username} 
+            username={username || "Khách"} 
             bestScore={stats.bestScore} 
+            stats={stats}
             onPlay={() => {
-              setBgId(Math.floor(Math.random() * 4) + 1);
+              setBgId((current) => getNextGameThemeId(current));
               setScreen("game");
             }} 
             onLogout={handleLogout} 
           />
         )}
 
-        {screen === "leaderboards" && (
-          <Leaderboards onBack={() => setScreen("game")} />
-        )}
+        {keepGameMounted && (
+          <>
+            <div style={{ display: screen === "game" ? "block" : "none" }}>
+              <Game2048 
+                bestScore={stats.bestScore} 
+                onGameEnd={(score, maxTile) => {
+                  // Only save if the user is logged in
+                  if (username) {
+                    recordGame(score, maxTile);
+                  }
+                }} 
+                bgId={bgId} 
+                setBgId={setBgId} 
+                onSettings={() => setScreen("settings")}
+                onDashboard={() => setScreen("dashboard")}
+                onLeaderboards={() => setScreen("leaderboards")}
+                musicEnabled={musicEnabled}
+                sfxEnabled={sfxEnabled}
+                inputEnabled={screen === "game"}
+              />
+            </div>
 
-        {screen === "settings" && (
-          <Settings
-            soundEnabled={soundEnabled}
-            onSoundChange={setSoundEnabled}
-            onBack={() => setScreen("game")}
-          />
-        )}
-        </Suspense>
+            {screen === "leaderboards" && (
+              <Leaderboards stats={stats} username={username} onBack={() => setScreen("game")} />
+            )}
 
-        {screen === "game" && (
-          <Game2048 
-            bestScore={stats.bestScore} 
-            onGameEnd={(score, maxTile) => {
-              // Only save if the user is logged in
-              if (username) {
-                recordGame(score, maxTile);
-              }
-            }} 
-            bgId={bgId} 
-            setBgId={setBgId} 
-            onQuit={() => {
-              // Return to login if guest, otherwise dashboard
-              setScreen(username ? "dashboard" : "login");
-            }}
-            onSettings={() => setScreen("settings")}
-            onLeaderboards={() => setScreen("leaderboards")}
-            onLogin={() => setScreen(username ? "dashboard" : "login")}
-            isGuest={!username}
-            soundEnabled={soundEnabled}
-          />
+            {screen === "settings" && (
+              <Settings
+                musicEnabled={musicEnabled}
+                sfxEnabled={sfxEnabled}
+                onMusicChange={setMusicEnabled}
+                onSfxChange={setSfxEnabled}
+                onBack={() => setScreen("game")}
+              />
+            )}
+          </>
         )}
       </main>
     </div>

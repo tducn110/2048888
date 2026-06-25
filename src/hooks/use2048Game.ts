@@ -116,7 +116,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-export function use2048Game() {
+export function use2048Game(inputEnabled = true) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     current: makeFreshBoard(),
     previous: null,
@@ -134,6 +134,8 @@ export function use2048Game() {
 
   // Keyboard
   useEffect(() => {
+    if (!inputEnabled) return;
+
     const KEY_MAP: Record<string, Direction> = {
       ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
       w: "up", s: "down", a: "left", d: "right",
@@ -156,7 +158,7 @@ export function use2048Game() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [move]);
+  }, [inputEnabled, move]);
 
   return {
     tiles: state.current.tiles,

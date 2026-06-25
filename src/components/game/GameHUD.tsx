@@ -1,45 +1,103 @@
-import { RotateCcw, Undo2 } from "lucide-react";
 import Button from "@/components/ui/Button";
+import type { GameTheme } from "./gameThemes";
 
 interface GameHUDProps {
   score: number;
   bestScore: number;
   scoreDelta: number;
   onReset: () => void;
-  onUndo: () => void;
-  canUndo: boolean;
+  theme: GameTheme;
 }
 
-export default function GameHUD({ score, bestScore, scoreDelta, onReset, onUndo, canUndo }: GameHUDProps) {
+export default function GameHUD({ score, bestScore, scoreDelta, onReset, theme }: GameHUDProps) {
   return (
-    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Score row */}
-      <div style={{ display: "flex", gap: 10, justifyContent: "space-between" }}>
-        <ScoreCard label="Điểm" value={score} delta={scoreDelta} highlight />
-        <ScoreCard label="Cao nhất" value={bestScore} />
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", paddingBottom: 2 }}>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onUndo}
-            disabled={!canUndo}
-            aria-label="Undo"
-            style={{ padding: "8px 10px" }}
-          >
-            <Undo2 size={15} />
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={onReset}
-            aria-label="Ván mới"
-          >
-            <RotateCcw size={14} />
-            <span>Mới</span>
-          </Button>
-        </div>
+    <GameControls>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <ScoreCard label="Điểm" value={score} delta={scoreDelta} theme={theme} />
+        <ScoreCard label="Tốt nhất" value={bestScore} theme={theme} />
       </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          gap: 8,
+          alignItems: "stretch",
+          marginLeft: theme.joinPanelMarginLeft,
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <InstructionCard theme={theme} />
+        <NewGameButton onReset={onReset} theme={theme} />
+      </div>
+    </GameControls>
+  );
+}
+
+function GameControls({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+      }}
+    >
+      {children}
     </div>
+  );
+}
+
+function InstructionCard({ theme }: { theme: GameTheme }) {
+  return (
+    <div
+      style={{
+        background: theme.instructionBg,
+        borderRadius: 8,
+        border: `2px solid ${theme.scoreCardBorder}`,
+        color: theme.instructionTextColor,
+        fontFamily: "'Be Vietnam Pro', sans-serif",
+        fontSize: 9,
+        fontWeight: 800,
+        lineHeight: 1.18,
+        padding: `7px 8px 7px ${theme.joinPanelPaddingLeft}px`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: theme.joinPanelJustifyContent,
+        minHeight: 44,
+        boxSizing: "border-box",
+        textAlign: theme.joinPanelTextAlign,
+        letterSpacing: 0,
+        boxShadow: "0 2px 0 rgba(48,31,18,0.08)",
+      }}
+    >
+      Ghép số tới 2048!
+    </div>
+  );
+}
+
+function NewGameButton({ onReset, theme }: { onReset: () => void; theme: GameTheme }) {
+  return (
+    <Button
+      size="sm"
+      variant="primary"
+      onClick={onReset}
+      aria-label="Gỡ lại"
+      style={{
+        height: "100%",
+        minWidth: 84,
+        borderRadius: 8,
+        whiteSpace: "nowrap",
+        padding: "0 11px",
+        fontSize: 12,
+        background: theme.ctaGradient,
+        borderColor: theme.ctaBorder,
+        boxShadow: theme.ctaShadow,
+      }}
+    >
+      <span>Gỡ lại</span>
+    </Button>
   );
 }
 
@@ -47,27 +105,29 @@ function ScoreCard({
   label,
   value,
   delta,
-  highlight,
+  theme,
 }: {
   label: string;
   value: number;
   delta?: number;
-  highlight?: boolean;
+  theme: GameTheme;
 }) {
   return (
     <div
       style={{
         flex: 1,
-        background: highlight ? "var(--orange-cta)" : "rgba(42,36,24,0.1)",
-        borderRadius: 14,
-        padding: "8px 14px",
+        background: theme.scoreCardBg,
+        borderRadius: 8,
+        padding: "7px 10px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        border: highlight ? "2px solid var(--orange-cta-edge)" : "1.5px solid rgba(42,36,24,0.1)",
+        border: `2px solid ${theme.scoreCardBorder}`,
         position: "relative",
         overflow: "hidden",
-        minWidth: 80,
+        minWidth: 0,
+        minHeight: 58,
+        boxSizing: "border-box",
       }}
     >
       <span
@@ -76,7 +136,7 @@ function ScoreCard({
           fontWeight: 700,
           letterSpacing: "0.1em",
           textTransform: "uppercase",
-          color: highlight ? "var(--ink-dark)" : "var(--ink-dark)",
+          color: theme.labelColor,
         }}
       >
         {label}
@@ -85,8 +145,8 @@ function ScoreCard({
         style={{
           fontFamily: "'Be Vietnam Pro', sans-serif",
           fontWeight: 800,
-          fontSize: 22,
-          color: highlight ? "#fff8ee" : "var(--ink-dark)",
+          fontSize: 21,
+          color: theme.valueColor,
           lineHeight: 1.1,
         }}
         aria-live="polite"
@@ -104,7 +164,7 @@ function ScoreCard({
             right: 8,
             fontSize: 11,
             fontWeight: 700,
-            color: highlight ? "#fff8ee" : "var(--orange-cta)",
+            color: theme.ctaBorder,
           }}
         >
           +{delta}
