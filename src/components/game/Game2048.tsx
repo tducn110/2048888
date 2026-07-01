@@ -5,28 +5,22 @@ import GameHeader from "./GameHeader";
 import GameHUD from "./GameHUD";
 import type { Direction } from "@/types";
 import Button from "@/components/ui/Button";
-import { Trophy, RefreshCw, AlertTriangle, ChartColumnBig, Settings } from "lucide-react";
-import { getMaxTile } from "@/utils/gameLogic";
-import { useGameAudio } from "@/hooks/useGameAudio";
+import { Trophy, RefreshCw, AlertTriangle, Settings } from "lucide-react";
+import type { GameSfx } from "@/hooks/useGameAudio";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
 
 interface Game2048Props {
   bestScore: number;
-  onGameEnd: (score: number, maxTile: number) => void;
+  onGameEnd: (score: number) => void;
   bgId: number;
   setBgId: (id: number) => void;
   onSettings: () => void;
-  onDashboard: () => void;
-  onLeaderboards: () => void;
-  musicEnabled: boolean;
-  sfxEnabled: boolean;
+  playSfx: (name: GameSfx) => void;
   inputEnabled?: boolean;
 }
 
-export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, onLeaderboards, musicEnabled, sfxEnabled, inputEnabled = true }: Game2048Props) {
-  void onLeaderboards;
+export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, playSfx, inputEnabled = true }: Game2048Props) {
   const { tiles, score, scoreDelta, status, moveCount, move, reset, continueGame, revive, doubleScore } = use2048Game(inputEnabled);
-  const { playSfx } = useGameAudio(musicEnabled, sfxEnabled);
   const theme = getGameTheme(bgId);
 
   // Record game result exactly once per terminal status transition
@@ -37,7 +31,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   useEffect(() => {
     if ((status === "won" || status === "lost") && !recordedRef.current) {
       recordedRef.current = true;
-      onGameEnd(score, getMaxTile(tiles));
+      onGameEnd(score);
     }
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -64,7 +58,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const handleReset = () => {
     recordedRef.current = false;
     setBgId(getNextGameThemeId(bgId));
-    playSfx("tap");
     reset();
   };
 
@@ -102,15 +95,8 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         }}
       >
         <IconButton
-          ariaLabel="Mở bảng điểm"
-          onClick={() => { playSfx("tap"); onDashboard(); }}
-          theme={theme}
-        >
-          <ChartColumnBig size={21} />
-        </IconButton>
-        <IconButton
           ariaLabel="Cài đặt"
-          onClick={() => { playSfx("tap"); onSettings(); }}
+          onClick={onSettings}
           theme={theme}
         >
           <Settings size={22} />
@@ -175,7 +161,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             >
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
                 <Button
-                  onClick={() => { playSfx("tap"); doubleScore(); continueGame(); }}
+                  onClick={() => { doubleScore(); continueGame(); }}
                   size="md"
                   variant="primary"
                   style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}
@@ -183,7 +169,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
                   ▶ Xem QC x2 Điểm
                 </Button>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <Button onClick={() => { playSfx("tap"); continueGame(); }} size="md" variant="secondary" style={{ flex: 1 }}>Tiếp tục</Button>
+                  <Button onClick={continueGame} size="md" variant="secondary" style={{ flex: 1 }}>Tiếp tục</Button>
                   <Button onClick={handleReset} variant="secondary" size="md" style={{ flex: 1 }}>Ván mới</Button>
                 </div>
               </div>
@@ -201,7 +187,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             >
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
                 <Button
-                  onClick={() => { playSfx("tap"); recordedRef.current = false; revive(); }}
+                  onClick={() => { recordedRef.current = false; revive(); }}
                   size="md"
                   variant="primary"
                   style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 const MUSIC_SRC = "/assets/audio/music.mp3";
+const MUSIC_VOLUME = 0.12;
 
 const SFX_SOURCES = {
   move: "/assets/audio/click3.ogg",
@@ -12,6 +13,35 @@ const SFX_SOURCES = {
 
 export type GameSfx = keyof typeof SFX_SOURCES;
 
+const SFX_VOLUMES: Record<GameSfx, number> = {
+  move: 0.58,
+  merge: 0.68,
+  win: 0.72,
+  lose: 0.72,
+  tap: 0.62,
+};
+
+const BUTTON_SFX_SELECTOR = [
+  "button",
+  "[role='button']",
+  "a[href]",
+  "input[type='button']",
+  "input[type='submit']",
+  "input[type='reset']",
+].join(",");
+
+function shouldPlayButtonSfx(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+
+  const control = target.closest(BUTTON_SFX_SELECTOR);
+  if (!(control instanceof HTMLElement)) return false;
+  if (control.closest("[data-sfx='off']")) return false;
+  if (control.getAttribute("aria-disabled") === "true") return false;
+  if ("disabled" in control && Boolean(control.disabled)) return false;
+
+  return true;
+}
+
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const sfxRef = useRef<Partial<Record<GameSfx, HTMLAudioElement>>>({});
@@ -21,7 +51,7 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     sfxRef.current = Object.fromEntries(
       Object.entries(SFX_SOURCES).map(([key, src]) => {
         const audio = new Audio(src);
-        audio.volume = key === "win" || key === "lose" ? 0.54 : 0.38;
+        audio.volume = SFX_VOLUMES[key as GameSfx];
         audio.preload = "auto";
         return [key, audio];
       })
@@ -41,7 +71,7 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     if (!musicRef.current) {
       const music = new Audio(MUSIC_SRC);
       music.loop = true;
-      music.volume = 0.26;
+      music.volume = MUSIC_VOLUME;
       music.preload = "none";
       musicRef.current = music;
     }
@@ -52,6 +82,22 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
       // Browser autoplay policy can still reject until a trusted user gesture.
     });
   }, [musicEnabled]);
+
+  const playSfx = useCallback(
+    (name: GameSfx) => {
+      if (!sfxEnabled) return;
+
+      const source = sfxRef.current[name];
+      if (!source) return;
+
+      const sound = source.cloneNode(true) as HTMLAudioElement;
+      sound.volume = source.volume;
+      sound.play().catch(() => {
+        // Ignore user-agent audio gating for noncritical effects.
+      });
+    },
+    [sfxEnabled]
+  );
 
   useEffect(() => {
     const music = musicRef.current;
@@ -79,21 +125,29 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     };
   }, [startMusic]);
 
-  const playSfx = useCallback(
-    (name: GameSfx) => {
-      if (!sfxEnabled) return;
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (shouldPlayButtonSfx(event.target)) {
+        playSfx("tap");
+      }
+    };
 
-      const source = sfxRef.current[name];
-      if (!source) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
 
-      const sound = source.cloneNode(true) as HTMLAudioElement;
-      sound.volume = source.volume;
-      sound.play().catch(() => {
-        // Ignore user-agent audio gating for noncritical effects.
-      });
-    },
-    [sfxEnabled]
-  );
+      if (shouldPlayButtonSfx(event.target)) {
+        playSfx("tap");
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, { capture: true });
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
+    };
+  }, [playSfx]);
 
   return { playSfx };
 }

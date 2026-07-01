@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import type { HistoryEntry, LocalStats } from "@/types";
+import type { LocalStats } from "@/types";
 
 const STORAGE_KEY = "bolacdauphong_v1_stats";
-const MAX_HISTORY = 20;
 
 function loadStats(): LocalStats {
   try {
@@ -12,11 +11,9 @@ function loadStats(): LocalStats {
     return {
       bestScore: parsed.bestScore ?? 0,
       lastScore: parsed.lastScore ?? 0,
-      totalGames: parsed.totalGames ?? 0,
-      history: Array.isArray(parsed.history) ? parsed.history : [],
     };
   } catch {
-    return { bestScore: 0, lastScore: 0, totalGames: 0, history: [] };
+    return { bestScore: 0, lastScore: 0 };
   }
 }
 
@@ -37,18 +34,11 @@ export function useLocalStats() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  const recordGame = useCallback((score: number, maxTile: number) => {
+  const recordGame = useCallback((score: number) => {
     setStats((prev) => {
-      const entry: HistoryEntry = {
-        date: new Date().toISOString(),
-        score,
-        maxTile,
-      };
       const next: LocalStats = {
         bestScore: Math.max(prev.bestScore, score),
         lastScore: score,
-        totalGames: prev.totalGames + 1,
-        history: [entry, ...prev.history].slice(0, MAX_HISTORY),
       };
       persistStats(next);
       return next;
@@ -56,7 +46,7 @@ export function useLocalStats() {
   }, []);
 
   const clearStats = useCallback(() => {
-    const fresh: LocalStats = { bestScore: 0, lastScore: 0, totalGames: 0, history: [] };
+    const fresh: LocalStats = { bestScore: 0, lastScore: 0 };
     persistStats(fresh);
     setStats(fresh);
   }, []);

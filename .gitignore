@@ -38,6 +38,8 @@ coverage/
 venv/
 .venv/
 .mimocode/
+.codegraph/
+logs_rg_*.txt
 
 # Vite output
 dist/
