@@ -74,12 +74,13 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         boxShadow: theme.panelShadow,
         display: "flex",
         flexDirection: "column",
-        gap: 14,
+        gap: "clamp(7px, 1.8dvh, 14px)",
         position: "relative",
         width: "100%",
-        maxWidth: 390,
+        maxWidth: "min(390px, calc(100dvh - 176px))",
+        maxHeight: "calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
         margin: "0 auto",
-        padding: "14px 14px 18px",
+        padding: "clamp(8px, 2dvh, 14px) clamp(10px, 3.6vw, 14px) clamp(10px, 2.4dvh, 18px)",
         boxSizing: "border-box",
         overflow: "hidden",
       }}
@@ -88,7 +89,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         style={{
           position: "absolute",
           top: 18,
-          right: 18,
+          right: "clamp(10px, 3.6vw, 18px)",
           display: "flex",
           gap: 8,
           zIndex: 2,
@@ -107,9 +108,9 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         style={{
           fontFamily: "'Be Vietnam Pro', sans-serif",
           fontWeight: 800,
-          fontSize: "clamp(40px, 11vw, 58px)",
+          fontSize: "clamp(30px, min(13vw, 8dvh), 58px)",
           color: theme.titleColor,
-          margin: "0 96px 0 0",
+          margin: "0 clamp(46px, 18vw, 96px) 0 0",
           lineHeight: 0.95,
           textAlign: "center",
           letterSpacing: 0,
@@ -119,7 +120,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         2048
       </h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "118px 1fr", alignItems: "end", width: "100%", columnGap: 9, boxSizing: "border-box" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "clamp(64px, min(28vw, 18dvh), 118px) minmax(0, 1fr)", alignItems: "end", width: "100%", columnGap: "clamp(6px, 2.4vw, 9px)", boxSizing: "border-box" }}>
         <GameHeader bgId={bgId} />
 
         <div style={{ width: "100%", paddingBottom: 2 }}>
@@ -137,12 +138,13 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         style={{
           background: theme.boardFrameBg,
           borderRadius: 16,
-          padding: 8,
+          padding: "clamp(5px, 1.3dvh, 8px)",
           border: `3px solid ${theme.boardFrameBorder}`,
           boxShadow: "0 3px 0 rgba(115,76,38,0.18) inset",
           display: "flex",
           flexDirection: "column",
           width: "100%",
+          minHeight: 0,
           boxSizing: "border-box",
         }}
       >
@@ -168,7 +170,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
                 >
                   ▶ Xem QC x2 Điểm
                 </Button>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   <Button onClick={continueGame} size="md" variant="secondary" style={{ flex: 1 }}>Tiếp tục</Button>
                   <Button onClick={handleReset} variant="secondary" size="md" style={{ flex: 1 }}>Ván mới</Button>
                 </div>
@@ -223,8 +225,9 @@ function IconButton({
       aria-label={ariaLabel}
       onClick={onClick}
       style={{
-        width: 40,
-        height: 40,
+        width: "clamp(36px, 11vw, 40px)",
+        height: "clamp(36px, 11vw, 40px)",
+        minWidth: 36,
         borderRadius: "50%",
         border: `2px solid ${theme.settingsBorder}`,
         background: theme.settingsBg,
@@ -264,7 +267,7 @@ function GameOverlay({
         borderRadius: 20,
         background: theme.overlayBg,
         backdropFilter: "blur(4px)",
-        padding: 16,
+        padding: "clamp(8px, 3vw, 16px)",
         boxSizing: "border-box",
         zIndex: 20,
       }}
@@ -281,8 +284,8 @@ function GameOverlay({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 14,
-          padding: 22,
+        gap: "clamp(10px, 3.4vw, 14px)",
+          padding: "clamp(12px, 4vw, 22px)",
           boxSizing: "border-box",
       }}
     >
@@ -292,7 +295,8 @@ function GameOverlay({
           style={{
             fontFamily: "'Be Vietnam Pro', sans-serif",
             fontWeight: 800,
-            fontSize: 28,
+            fontSize: "clamp(22px, 7vw, 28px)",
+            lineHeight: 1.08,
             color: titleColor,
             margin: "0 0 6px",
             textShadow: "0 2px 0 rgba(255,255,255,0.6)",
@@ -300,11 +304,11 @@ function GameOverlay({
         >
           {title}
         </h2>
-        <p style={{ fontSize: 14, color: "var(--pencil-gray)", margin: 0, fontWeight: 500 }}>
+        <p style={{ fontSize: "clamp(12px, 3.8vw, 14px)", color: "var(--pencil-gray)", margin: 0, fontWeight: 500, lineHeight: 1.35 }}>
           {subtitle}
         </p>
       </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280, minWidth: 0 }}>
         {children}
       </div>
       </div>

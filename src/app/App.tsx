@@ -22,7 +22,8 @@ export default function App() {
       height: "100dvh",
       width: "100vw",
       overflowX: "hidden",
-      overflowY: "auto",
+      overflowY: "hidden",
+      overscrollBehavior: "none",
       background: "var(--rice-paper)",
       fontFamily: "'Be Vietnam Pro', sans-serif",
       display: "flex",
@@ -39,15 +40,18 @@ export default function App() {
         zIndex: 1,
         width: "100%",
         maxWidth: 460,
-        padding: "max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left))",
+        height: "100%",
+        padding: "max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
         gap: 20,
       }}>
         {keepGameMounted && (
           <>
-            <div style={{ display: screen === "game" ? "block" : "none" }}>
+            <div style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
               <Game2048 
                 bestScore={stats.bestScore} 
                 onGameEnd={(score) => {

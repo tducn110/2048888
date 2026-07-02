@@ -19,10 +19,10 @@ export default function GameHUD({ score, bestScore, scoreDelta, onReset, theme }
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) auto",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(68px, auto)",
           gap: 8,
           alignItems: "stretch",
-          marginLeft: theme.joinPanelMarginLeft,
+          marginLeft: `clamp(0px, 5vw, ${theme.joinPanelMarginLeft}px)`,
           position: "relative",
           zIndex: 1,
         }}
@@ -58,14 +58,14 @@ function InstructionCard({ theme }: { theme: GameTheme }) {
         border: `2px solid ${theme.scoreCardBorder}`,
         color: theme.instructionTextColor,
         fontFamily: "'Be Vietnam Pro', sans-serif",
-        fontSize: 9,
+        fontSize: "clamp(8px, 2.8vw, 9px)",
         fontWeight: 800,
         lineHeight: 1.18,
-        padding: `7px 8px 7px ${theme.joinPanelPaddingLeft}px`,
+        padding: `7px 8px 7px clamp(8px, 4vw, ${theme.joinPanelPaddingLeft}px)`,
         display: "flex",
         alignItems: "center",
         justifyContent: theme.joinPanelJustifyContent,
-        minHeight: 44,
+          minHeight: "clamp(34px, min(12vw, 7dvh), 44px)",
         boxSizing: "border-box",
         textAlign: theme.joinPanelTextAlign,
         letterSpacing: 0,
@@ -85,11 +85,13 @@ function NewGameButton({ onReset, theme }: { onReset: () => void; theme: GameThe
       onClick={onReset}
       aria-label="Gỡ lại"
       style={{
-        minWidth: 84,
+        minWidth: 0,
+        minHeight: "clamp(34px, 7dvh, 44px)",
         borderRadius: 8,
-        whiteSpace: "nowrap",
-        padding: "0 11px",
-        fontSize: 12,
+        whiteSpace: "normal",
+        padding: "4px clamp(7px, 2.7vw, 11px)",
+        fontSize: "clamp(10px, 3.4vw, 12px)",
+        lineHeight: 1.05,
         background: theme.ctaGradient,
         borderColor: theme.ctaBorder,
         boxShadow: theme.ctaShadow,
@@ -117,7 +119,7 @@ function ScoreCard({
         flex: 1,
         background: theme.scoreCardBg,
         borderRadius: 8,
-        padding: "7px 10px",
+        padding: "7px clamp(6px, 2.8vw, 10px)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -125,17 +127,19 @@ function ScoreCard({
         position: "relative",
         overflow: "hidden",
         minWidth: 0,
-        minHeight: 58,
+        minHeight: "clamp(46px, 10dvh, 58px)",
         boxSizing: "border-box",
       }}
     >
       <span
         style={{
-          fontSize: 10,
+          fontSize: "clamp(8px, 2.8vw, 10px)",
           fontWeight: 700,
           letterSpacing: "0.1em",
           textTransform: "uppercase",
           color: theme.labelColor,
+          textAlign: "center",
+          lineHeight: 1.1,
         }}
       >
         {label}
@@ -144,9 +148,11 @@ function ScoreCard({
         style={{
           fontFamily: "'Be Vietnam Pro', sans-serif",
           fontWeight: 800,
-          fontSize: 21,
+          fontSize: "clamp(16px, 5.6vw, 21px)",
           color: theme.valueColor,
           lineHeight: 1.1,
+          maxWidth: "100%",
+          overflowWrap: "anywhere",
         }}
         aria-live="polite"
         aria-atomic="true"
@@ -160,7 +166,7 @@ function ScoreCard({
           style={{
             position: "absolute",
             top: 4,
-            right: 8,
+            right: 6,
             fontSize: 11,
             fontWeight: 700,
             color: theme.ctaBorder,

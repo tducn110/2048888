@@ -40,8 +40,14 @@
 ::-webkit-scrollbar-thumb { background: rgba(42,36,24,0.2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(42,36,24,0.35); }
 
-html { scroll-behavior: smooth; }
+html {
+  height: 100%;
+  overflow: hidden;
+  scroll-behavior: smooth;
+}
 body {
+  height: 100%;
+  overflow: hidden;
   font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 16px;
   line-height: 1.65;

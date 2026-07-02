@@ -15,7 +15,7 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
       style={{
         background: "var(--cream-card)",
         borderRadius: 24,
-        padding: "32px 24px",
+        padding: "clamp(20px, 6vw, 32px) clamp(14px, 5vw, 24px)",
         border: "2px solid rgba(42,36,24,0.14)",
         boxShadow: "0 14px 40px rgba(42,36,24,0.18), 0 2px 0 rgba(255,255,255,0.6) inset",
         display: "flex",
@@ -23,10 +23,12 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
         gap: 24,
         position: "relative",
         width: "100%",
+        maxHeight: "calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
         boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, minWidth: 0 }}>
         <SettingsIcon size={28} color="var(--ink-dark)" />
         <h1
           style={{
@@ -47,11 +49,12 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: 12,
           padding: "16px",
           background: "rgba(138,125,101,0.08)",
           borderRadius: 16
         }}>
-          <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8, minWidth: 0, lineHeight: 1.25 }}>
             {musicEnabled ? <Music size={20} /> : <VolumeX size={20} />}
             Nhạc nền
           </div>
@@ -68,11 +71,12 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: 12,
           padding: "16px",
           background: "rgba(138,125,101,0.08)",
           borderRadius: 16
         }}>
-          <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8, minWidth: 0, lineHeight: 1.25 }}>
             {sfxEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
             Hiệu ứng âm thanh
           </div>

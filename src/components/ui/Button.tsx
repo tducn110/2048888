@@ -65,7 +65,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             : style
         }
         className={[
-          "inline-flex items-center justify-center gap-2 font-bold",
+          "inline-flex min-w-0 items-center justify-center gap-2 whitespace-normal break-words text-center font-bold leading-tight",
           "transition-all duration-100 cursor-pointer select-none",
           "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none",
           variantStyles[variant],

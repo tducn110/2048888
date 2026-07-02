@@ -4,11 +4,11 @@ const MUSIC_SRC = "/assets/audio/music.mp3";
 const MUSIC_VOLUME = 0.05; // Background < SFX
 
 const SFX_SOURCES = {
-  move: "/assets/audio/click3.ogg",
-  merge: "/assets/audio/switch7.ogg",
-  win: "/assets/audio/switch33.ogg",
-  lose: "/assets/audio/switch24.ogg",
-  tap: "/assets/audio/click3.ogg",
+  move: { ogg: "/assets/audio/click3.ogg", mp3: "/assets/audio/click3.mp3" },
+  merge: { ogg: "/assets/audio/switch7.ogg", mp3: "/assets/audio/switch7.mp3" },
+  win: { ogg: "/assets/audio/switch33.ogg", mp3: "/assets/audio/switch33.mp3" },
+  lose: { ogg: "/assets/audio/switch24.ogg", mp3: "/assets/audio/switch24.mp3" },
+  tap: { ogg: "/assets/audio/click3.ogg", mp3: "/assets/audio/click3.mp3" },
 } as const;
 
 export type GameSfx = keyof typeof SFX_SOURCES;
@@ -52,9 +52,18 @@ let bgmStarted = false;
 
 const sfxBuffers: Partial<Record<GameSfx, AudioBuffer>> = {};
 
+function pickSfxSource(source: (typeof SFX_SOURCES)[GameSfx]) {
+  const probe = document.createElement("audio");
+  const supportsOgg = probe.canPlayType('audio/ogg; codecs="vorbis"');
+  return supportsOgg ? source.ogg : source.mp3;
+}
+
 function initAudioSystem() {
   if (audioCtx) return;
-  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  const AudioContextClass =
+    window.AudioContext ||
+    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextClass) return;
   audioCtx = new AudioContextClass();
   
   bgmGain = audioCtx.createGain();
@@ -64,7 +73,8 @@ function initAudioSystem() {
   sfxGain.connect(audioCtx.destination);
 
   // Load SFX buffers
-  Object.entries(SFX_SOURCES).forEach(async ([key, src]) => {
+  Object.entries(SFX_SOURCES).forEach(async ([key, source]) => {
+    const src = pickSfxSource(source);
     try {
       const response = await fetch(src);
       const arrayBuffer = await response.arrayBuffer();
@@ -92,15 +102,30 @@ function setupBgm() {
   localGain.connect(bgmGain);
 }
 
-function startBgm() {
-  if (!bgmElement) return;
-  if (!bgmStarted) {
+async function startBgm() {
+  if (!bgmElement || bgmStarted) return;
+
+  try {
+    await bgmElement.play();
     bgmStarted = true;
-    bgmElement.play().catch(e => console.log("BGM play deferred until interaction", e));
+  } catch (e) {
+    bgmStarted = false;
+    console.log("BGM play deferred until interaction", e);
   }
 }
 
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
+  const musicEnabledRef = useRef(musicEnabled);
+  const sfxEnabledRef = useRef(sfxEnabled);
+
+  useEffect(() => {
+    musicEnabledRef.current = musicEnabled;
+  }, [musicEnabled]);
+
+  useEffect(() => {
+    sfxEnabledRef.current = sfxEnabled;
+  }, [sfxEnabled]);
+
   // Sync mute state to gain nodes
   useEffect(() => {
     if (!audioCtx) return;
@@ -147,17 +172,31 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
 
   // Initialize and unlock audio on interaction
   useEffect(() => {
-    const unlock = () => {
+    let unlocked = false;
+
+    const unlock = async () => {
+      if (unlocked) return;
+      unlocked = true;
+
       initAudioSystem();
       if (audioCtx?.state === "suspended") {
-        audioCtx.resume();
+        try {
+          await audioCtx.resume();
+        } catch (e) {
+          unlocked = false;
+          console.log("Audio resume deferred until interaction", e);
+          return;
+        }
       }
       setupBgm();
-      startBgm();
       
       // Update gain nodes immediately based on props since context is just created
-      if (bgmGain) bgmGain.gain.value = musicEnabled ? 1 : 0;
-      if (sfxGain) sfxGain.gain.value = sfxEnabled ? 1 : 0;
+      if (bgmGain) bgmGain.gain.value = musicEnabledRef.current ? 1 : 0;
+      if (sfxGain) sfxGain.gain.value = sfxEnabledRef.current ? 1 : 0;
+
+      if (musicEnabledRef.current) {
+        await startBgm();
+      }
     };
 
     window.addEventListener("pointerdown", unlock, { once: true });

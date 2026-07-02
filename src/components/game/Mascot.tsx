@@ -1,8 +1,8 @@
 import { getGameTheme, type MascotKind } from "./gameThemes";
 
 interface MascotProps {
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
   themeId?: number;
 }
 
@@ -14,10 +14,17 @@ const STATIC_MASCOTS: Record<MascotKind, string> = {
 };
 
 const MASCOT_SCALE: Record<MascotKind, number> = {
-  peanut: 1.14,
+  peanut: 0.9,
   banhtung: 1.08,
   tiguayel: 1.1,
   dogoin: 1.18,
+};
+
+const MASCOT_OFFSET_Y: Record<MascotKind, string> = {
+  peanut: "6%",
+  banhtung: "0",
+  tiguayel: "0",
+  dogoin: "0",
 };
 
 export default function Mascot({ width = 120, height = 120, themeId = 1 }: MascotProps) {
@@ -43,7 +50,7 @@ export default function Mascot({ width = 120, height = 120, themeId = 1 }: Masco
           height: "100%",
           objectFit: "contain",
           filter: "drop-shadow(0 5px 4px rgba(40,27,16,0.18))",
-          transform: `scale(${MASCOT_SCALE[mascot]})`,
+          transform: `translateY(${MASCOT_OFFSET_Y[mascot]}) scale(${MASCOT_SCALE[mascot]})`,
           transformOrigin: "center bottom",
         }}
       />
