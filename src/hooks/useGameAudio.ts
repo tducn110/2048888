@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 const MUSIC_SRC = "/assets/audio/music.mp3";
-const MUSIC_VOLUME = 0.12;
+const MUSIC_VOLUME = 0.05; // Background < SFX
 
 const SFX_SOURCES = {
   move: "/assets/audio/click3.ogg",
@@ -14,11 +14,11 @@ const SFX_SOURCES = {
 export type GameSfx = keyof typeof SFX_SOURCES;
 
 const SFX_VOLUMES: Record<GameSfx, number> = {
-  move: 0.58,
-  merge: 0.68,
-  win: 0.72,
-  lose: 0.72,
-  tap: 0.62,
+  move: 0.6,
+  merge: 0.8,
+  win: 0.9,
+  lose: 0.9,
+  tap: 0.7,
 };
 
 const BUTTON_SFX_SELECTOR = [
@@ -42,89 +42,143 @@ function shouldPlayButtonSfx(target: EventTarget | null) {
   return true;
 }
 
+// Global Web Audio API Context
+let audioCtx: AudioContext | null = null;
+let bgmGain: GainNode | null = null;
+let sfxGain: GainNode | null = null;
+let bgmElement: HTMLAudioElement | null = null;
+let bgmSource: MediaElementAudioSourceNode | null = null;
+let bgmStarted = false;
+
+const sfxBuffers: Partial<Record<GameSfx, AudioBuffer>> = {};
+
+function initAudioSystem() {
+  if (audioCtx) return;
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  audioCtx = new AudioContextClass();
+  
+  bgmGain = audioCtx.createGain();
+  sfxGain = audioCtx.createGain();
+
+  bgmGain.connect(audioCtx.destination);
+  sfxGain.connect(audioCtx.destination);
+
+  // Load SFX buffers
+  Object.entries(SFX_SOURCES).forEach(async ([key, src]) => {
+    try {
+      const response = await fetch(src);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioCtx!.decodeAudioData(arrayBuffer);
+      sfxBuffers[key as GameSfx] = audioBuffer;
+    } catch (e) {
+      console.error("Failed to load sfx", src, e);
+    }
+  });
+}
+
+function setupBgm() {
+  if (!audioCtx || !bgmGain) return;
+  if (bgmElement) return;
+
+  bgmElement = new Audio(MUSIC_SRC);
+  bgmElement.loop = true;
+  // DO NOT use bgmElement.volume!
+
+  bgmSource = audioCtx.createMediaElementSource(bgmElement);
+  const localGain = audioCtx.createGain();
+  localGain.gain.value = MUSIC_VOLUME;
+  
+  bgmSource.connect(localGain);
+  localGain.connect(bgmGain);
+}
+
+function startBgm() {
+  if (!bgmElement) return;
+  if (!bgmStarted) {
+    bgmStarted = true;
+    bgmElement.play().catch(e => console.log("BGM play deferred until interaction", e));
+  }
+}
+
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
-  const musicRef = useRef<HTMLAudioElement | null>(null);
-  const sfxRef = useRef<Partial<Record<GameSfx, HTMLAudioElement>>>({});
-  const unlockedRef = useRef(false);
+  // Sync mute state to gain nodes
+  useEffect(() => {
+    if (!audioCtx) return;
+    if (bgmGain) {
+      // Never pause the audio element to mute, just set gain to 0
+      bgmGain.gain.value = musicEnabled ? 1 : 0;
+    }
+  }, [musicEnabled]);
 
   useEffect(() => {
-    sfxRef.current = Object.fromEntries(
-      Object.entries(SFX_SOURCES).map(([key, src]) => {
-        const audio = new Audio(src);
-        audio.volume = SFX_VOLUMES[key as GameSfx];
-        audio.preload = "auto";
-        return [key, audio];
-      })
-    ) as Record<GameSfx, HTMLAudioElement>;
-
-    return () => {
-      const music = musicRef.current;
-      music?.pause();
-      musicRef.current = null;
-      sfxRef.current = {};
-    };
-  }, []);
-
-  const startMusic = useCallback(() => {
-    if (!musicEnabled) return;
-
-    if (!musicRef.current) {
-      const music = new Audio(MUSIC_SRC);
-      music.loop = true;
-      music.volume = MUSIC_VOLUME;
-      music.preload = "none";
-      musicRef.current = music;
+    if (!audioCtx) return;
+    if (sfxGain) {
+      sfxGain.gain.value = sfxEnabled ? 1 : 0;
     }
-
-    const music = musicRef.current;
-
-    music.play().catch(() => {
-      // Browser autoplay policy can still reject until a trusted user gesture.
-    });
-  }, [musicEnabled]);
+  }, [sfxEnabled]);
 
   const playSfx = useCallback(
     (name: GameSfx) => {
+      // We check sfxGain.gain.value dynamically, but if sfxEnabled is false, we can skip
       if (!sfxEnabled) return;
+      if (!audioCtx || !sfxGain) return;
 
-      const source = sfxRef.current[name];
-      if (!source) return;
+      const buffer = sfxBuffers[name];
+      if (!buffer) return;
 
-      const sound = source.cloneNode(true) as HTMLAudioElement;
-      sound.volume = source.volume;
-      sound.play().catch(() => {
-        // Ignore user-agent audio gating for noncritical effects.
-      });
+      // Resume context if suspended (common on iOS)
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+
+      const localGain = audioCtx.createGain();
+      localGain.gain.value = SFX_VOLUMES[name];
+
+      source.connect(localGain);
+      localGain.connect(sfxGain);
+
+      source.start(0);
     },
     [sfxEnabled]
   );
 
-  useEffect(() => {
-    const music = musicRef.current;
-    if (!music) return;
-
-    if (musicEnabled && unlockedRef.current) {
-      startMusic();
-    } else {
-      music.pause();
-    }
-  }, [musicEnabled, startMusic]);
-
+  // Initialize and unlock audio on interaction
   useEffect(() => {
     const unlock = () => {
-      unlockedRef.current = true;
-      startMusic();
+      initAudioSystem();
+      if (audioCtx?.state === "suspended") {
+        audioCtx.resume();
+      }
+      setupBgm();
+      startBgm();
+      
+      // Update gain nodes immediately based on props since context is just created
+      if (bgmGain) bgmGain.gain.value = musicEnabled ? 1 : 0;
+      if (sfxGain) sfxGain.gain.value = sfxEnabled ? 1 : 0;
     };
 
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true, passive: true });
 
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
     };
-  }, [startMusic]);
+  }, []); // Only run once to attach unlock listeners
 
+  useEffect(() => {
+    // If music is toggled on and we already have context, ensure it plays
+    if (musicEnabled && bgmGain && audioCtx) {
+      startBgm();
+    }
+  }, [musicEnabled]);
+
+  // Global button SFX listener
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       if (shouldPlayButtonSfx(event.target)) {

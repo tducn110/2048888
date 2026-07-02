@@ -18,6 +18,7 @@ export default function App() {
 
   return (
     <div style={{
+      minHeight: "100vh",
       height: "100dvh",
       width: "100vw",
       overflowX: "hidden",
@@ -38,7 +39,7 @@ export default function App() {
         zIndex: 1,
         width: "100%",
         maxWidth: 460,
-        padding: "20px",
+        padding: "max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left))",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",

@@ -85,7 +85,6 @@ function NewGameButton({ onReset, theme }: { onReset: () => void; theme: GameThe
       onClick={onReset}
       aria-label="Gỡ lại"
       style={{
-        height: "100%",
         minWidth: 84,
         borderRadius: 8,
         whiteSpace: "nowrap",
