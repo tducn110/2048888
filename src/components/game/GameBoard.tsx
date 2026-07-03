@@ -124,6 +124,7 @@ export default function GameBoard({ tiles, onSwipe, background }: GameBoardProps
 
   return (
     <div
+      className="game-board"
       ref={containerRef}
       style={{
         position: "relative",

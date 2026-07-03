@@ -55,6 +55,184 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+#root {
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.app-shell {
+  min-height: 100svh;
+  height: 100dvh !important;
+  max-height: 100dvh;
+}
+
+@supports not (height: 100dvh) {
+  .app-shell {
+    min-height: -webkit-fill-available !important;
+    height: -webkit-fill-available !important;
+  }
+}
+
+@media (max-width: 640px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overscroll-behavior: none;
+  }
+
+  .app-main--game {
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    padding:
+      max(6px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      calc(max(14px, env(safe-area-inset-bottom)) + 28px)
+      max(8px, env(safe-area-inset-left)) !important;
+  }
+
+  .game-screen-slot {
+    min-height: 0;
+    max-height: 100%;
+    overflow: visible;
+  }
+
+  .game-card {
+    gap: clamp(5px, 1.1dvh, 9px) !important;
+    max-width: min(
+      380px,
+      calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right)),
+      calc(100dvh - 146px - env(safe-area-inset-top) - env(safe-area-inset-bottom))
+    ) !important;
+    max-height: calc(100dvh - 26px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+    padding: clamp(7px, 1.4dvh, 10px) clamp(8px, 2.5vw, 11px) clamp(8px, 1.6dvh, 12px) !important;
+    border-radius: 22px !important;
+  }
+
+  .game-card-actions {
+    top: 10px !important;
+    right: clamp(8px, 2.8vw, 12px) !important;
+    gap: 6px !important;
+  }
+
+  .game-icon-button {
+    width: clamp(36px, 9.5vw, 38px) !important;
+    height: clamp(36px, 9.5vw, 38px) !important;
+    min-width: 36px !important;
+  }
+
+  .game-title {
+    font-size: clamp(24px, min(9vw, 5.4dvh), 38px) !important;
+    line-height: 0.9 !important;
+    margin-right: clamp(74px, 22vw, 90px) !important;
+  }
+
+  .game-header-row {
+    grid-template-columns: clamp(54px, min(20vw, 11dvh), 76px) minmax(0, 1fr) !important;
+    column-gap: clamp(5px, 1.8vw, 7px) !important;
+  }
+
+  .game-mascot-wrap {
+    width: clamp(54px, min(20vw, 11dvh), 76px) !important;
+    height: clamp(54px, min(20vw, 11dvh), 76px) !important;
+  }
+
+  .game-controls {
+    gap: 5px !important;
+  }
+
+  .game-score-grid {
+    gap: 5px !important;
+  }
+
+  .game-score-card {
+    min-height: clamp(36px, 6.2dvh, 46px) !important;
+    padding: 4px 6px !important;
+    border-radius: 7px !important;
+  }
+
+  .game-score-label {
+    font-size: clamp(7px, 2.3vw, 9px) !important;
+    line-height: 1 !important;
+  }
+
+  .game-score-value {
+    font-size: clamp(14px, 4.7vw, 18px) !important;
+    line-height: 1.05 !important;
+  }
+
+  .game-reset-row {
+    grid-template-columns: minmax(0, 1fr) minmax(58px, auto) !important;
+    gap: 5px !important;
+    margin-left: 0 !important;
+  }
+
+  .game-instruction-card {
+    min-height: clamp(30px, 5.2dvh, 36px) !important;
+    padding: 5px 6px !important;
+    font-size: clamp(8px, 2.5vw, 9px) !important;
+    line-height: 1.1 !important;
+  }
+
+  .game-reset-button {
+    min-height: clamp(34px, 5.8dvh, 38px) !important;
+    padding: 4px 8px !important;
+    font-size: clamp(10px, 3vw, 11px) !important;
+  }
+
+  .game-board-frame {
+    align-items: center !important;
+    padding: clamp(4px, 0.8dvh, 6px) !important;
+    border-width: 2px !important;
+    border-radius: 14px !important;
+  }
+
+  .game-board-shell {
+    width: min(
+      100%,
+      calc(100dvh - 218px - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
+      calc(100svh - 218px - env(safe-area-inset-top) - env(safe-area-inset-bottom))
+    ) !important;
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+  }
+
+  .game-board {
+    width: 100% !important;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 760px) {
+  .app-main--game {
+    padding-bottom: calc(max(12px, env(safe-area-inset-bottom)) + 12px) !important;
+  }
+
+  .game-card {
+    gap: 5px !important;
+    max-width: min(
+      370px,
+      calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right)),
+      calc(100dvh - 132px - env(safe-area-inset-top) - env(safe-area-inset-bottom))
+    ) !important;
+  }
+
+  .game-board-shell {
+    width: min(
+      100%,
+      calc(100dvh - 204px - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
+      calc(100svh - 204px - env(safe-area-inset-top) - env(safe-area-inset-bottom))
+    ) !important;
+  }
+}
+
 /* View Transitions for Theme Change */
 @keyframes circle-out {
   from { clip-path: circle(0% at center); }

@@ -5,21 +5,23 @@ import GameHeader from "./GameHeader";
 import GameHUD from "./GameHUD";
 import type { Direction } from "@/types";
 import Button from "@/components/ui/Button";
-import { Trophy, RefreshCw, AlertTriangle, Settings } from "lucide-react";
+import { Trophy, RefreshCw, AlertTriangle, ChartColumnBig, Settings } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
+import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
 
 interface Game2048Props {
   bestScore: number;
-  onGameEnd: (score: number) => void;
+  onGameEnd: (score: number, maxTile: number) => void;
   bgId: number;
   setBgId: (id: number) => void;
   onSettings: () => void;
+  onDashboard: () => void;
   playSfx: (name: GameSfx) => void;
   inputEnabled?: boolean;
 }
 
-export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, playSfx, inputEnabled = true }: Game2048Props) {
+export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, inputEnabled = true }: Game2048Props) {
   const { tiles, score, scoreDelta, status, moveCount, move, reset, continueGame, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
 
@@ -31,7 +33,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   useEffect(() => {
     if ((status === "won" || status === "lost") && !recordedRef.current) {
       recordedRef.current = true;
-      onGameEnd(score);
+      onGameEnd(score, getMaxTile(tiles));
     }
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -67,6 +69,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
 
   return (
     <div
+      className="game-card"
       style={{
         background: theme.panelBackground,
         border: `2px solid ${theme.panelBorder}`,
@@ -77,7 +80,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         gap: "clamp(7px, 1.8dvh, 14px)",
         position: "relative",
         width: "100%",
-        maxWidth: "min(390px, calc(100dvh - 176px))",
+        maxWidth: "min(390px, calc(100dvh - 156px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))",
         maxHeight: "calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
         margin: "0 auto",
         padding: "clamp(8px, 2dvh, 14px) clamp(10px, 3.6vw, 14px) clamp(10px, 2.4dvh, 18px)",
@@ -86,6 +89,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       }}
     >
       <div
+        className="game-card-actions"
         style={{
           position: "absolute",
           top: 18,
@@ -96,6 +100,13 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         }}
       >
         <IconButton
+          ariaLabel="Mở bảng điểm"
+          onClick={onDashboard}
+          theme={theme}
+        >
+          <ChartColumnBig size={21} />
+        </IconButton>
+        <IconButton
           ariaLabel="Cài đặt"
           onClick={onSettings}
           theme={theme}
@@ -105,6 +116,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       </div>
 
       <h1
+        className="game-title"
         style={{
           fontFamily: "'Be Vietnam Pro', sans-serif",
           fontWeight: 800,
@@ -120,7 +132,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         2048
       </h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "clamp(64px, min(28vw, 18dvh), 118px) minmax(0, 1fr)", alignItems: "end", width: "100%", columnGap: "clamp(6px, 2.4vw, 9px)", boxSizing: "border-box" }}>
+      <div className="game-header-row" style={{ display: "grid", gridTemplateColumns: "clamp(64px, min(28vw, 18dvh), 118px) minmax(0, 1fr)", alignItems: "end", width: "100%", columnGap: "clamp(6px, 2.4vw, 9px)", boxSizing: "border-box" }}>
         <GameHeader bgId={bgId} />
 
         <div style={{ width: "100%", paddingBottom: 2 }}>
@@ -135,6 +147,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       </div>
 
       <div
+        className="game-board-frame"
         style={{
           background: theme.boardFrameBg,
           borderRadius: 16,
@@ -149,7 +162,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         }}
       >
         {/* Board */}
-        <div style={{ position: "relative" }}>
+        <div className="game-board-shell" style={{ position: "relative" }}>
           <GameBoard tiles={tiles} onSwipe={handleSwipe} background={theme.boardBg} />
 
           {/* Overlay: WON */}
@@ -222,6 +235,7 @@ function IconButton({
 }) {
   return (
     <button
+      className="game-icon-button"
       aria-label={ariaLabel}
       onClick={onClick}
       style={{

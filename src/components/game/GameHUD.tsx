@@ -12,11 +12,12 @@ interface GameHUDProps {
 export default function GameHUD({ score, bestScore, scoreDelta, onReset, theme }: GameHUDProps) {
   return (
     <GameControls>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div className="game-score-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <ScoreCard label="Điểm" value={score} delta={scoreDelta} theme={theme} />
         <ScoreCard label="Tốt nhất" value={bestScore} theme={theme} />
       </div>
       <div
+        className="game-reset-row"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) minmax(68px, auto)",
@@ -37,6 +38,7 @@ export default function GameHUD({ score, bestScore, scoreDelta, onReset, theme }
 function GameControls({ children }: { children: React.ReactNode }) {
   return (
     <div
+      className="game-controls"
       style={{
         width: "100%",
         display: "flex",
@@ -52,6 +54,7 @@ function GameControls({ children }: { children: React.ReactNode }) {
 function InstructionCard({ theme }: { theme: GameTheme }) {
   return (
     <div
+      className="game-instruction-card"
       style={{
         background: theme.instructionBg,
         borderRadius: 8,
@@ -80,6 +83,7 @@ function InstructionCard({ theme }: { theme: GameTheme }) {
 function NewGameButton({ onReset, theme }: { onReset: () => void; theme: GameTheme }) {
   return (
     <Button
+      className="game-reset-button"
       size="sm"
       variant="primary"
       onClick={onReset}
@@ -115,6 +119,7 @@ function ScoreCard({
 }) {
   return (
     <div
+      className="game-score-card"
       style={{
         flex: 1,
         background: theme.scoreCardBg,
@@ -132,6 +137,7 @@ function ScoreCard({
       }}
     >
       <span
+        className="game-score-label"
         style={{
           fontSize: "clamp(8px, 2.8vw, 10px)",
           fontWeight: 700,
@@ -145,6 +151,7 @@ function ScoreCard({
         {label}
       </span>
       <span
+        className="game-score-value"
         style={{
           fontFamily: "'Be Vietnam Pro', sans-serif",
           fontWeight: 800,

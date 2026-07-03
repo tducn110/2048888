@@ -49,6 +49,9 @@ let sfxGain: GainNode | null = null;
 let bgmElement: HTMLAudioElement | null = null;
 let bgmSource: MediaElementAudioSourceNode | null = null;
 let bgmStarted = false;
+let bgmPlayPromise: Promise<void> | null = null;
+let bgmDesiredPlaying = false;
+let audioUnlocked = false;
 
 const sfxBuffers: Partial<Record<GameSfx, AudioBuffer>> = {};
 
@@ -92,7 +95,9 @@ function setupBgm() {
 
   bgmElement = new Audio(MUSIC_SRC);
   bgmElement.loop = true;
-  // DO NOT use bgmElement.volume!
+  bgmElement.preload = "auto";
+  bgmElement.setAttribute("playsinline", "true");
+  // Keep element volume at 1; Web Audio gain controls the mix.
 
   bgmSource = audioCtx.createMediaElementSource(bgmElement);
   const localGain = audioCtx.createGain();
@@ -102,16 +107,38 @@ function setupBgm() {
   localGain.connect(bgmGain);
 }
 
-async function startBgm() {
-  if (!bgmElement || bgmStarted) return;
+function syncGainState(musicEnabled: boolean, sfxEnabled: boolean) {
+  if (bgmGain) bgmGain.gain.value = musicEnabled ? 1 : 0;
+  if (sfxGain) sfxGain.gain.value = sfxEnabled ? 1 : 0;
+}
 
-  try {
-    await bgmElement.play();
-    bgmStarted = true;
-  } catch (e) {
-    bgmStarted = false;
-    console.log("BGM play deferred until interaction", e);
-  }
+function startBgm() {
+  if (!bgmElement) return;
+  bgmDesiredPlaying = true;
+  if (bgmStarted && !bgmElement.paused) return;
+  if (bgmPlayPromise) return;
+
+  bgmPlayPromise = bgmElement
+    .play()
+    .then(() => {
+      bgmStarted = bgmDesiredPlaying;
+      if (!bgmDesiredPlaying) {
+        bgmElement?.pause();
+      }
+    })
+    .catch(() => {
+      bgmStarted = false;
+    })
+    .finally(() => {
+      bgmPlayPromise = null;
+    });
+}
+
+function pauseBgm() {
+  bgmDesiredPlaying = false;
+  bgmStarted = false;
+  if (!bgmElement) return;
+  bgmElement.pause();
 }
 
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
@@ -128,10 +155,18 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
 
   // Sync mute state to gain nodes
   useEffect(() => {
-    if (!audioCtx) return;
     if (bgmGain) {
-      // Never pause the audio element to mute, just set gain to 0
       bgmGain.gain.value = musicEnabled ? 1 : 0;
+    }
+
+    if (!musicEnabled) {
+      pauseBgm();
+      return;
+    }
+
+    if (audioUnlocked && audioCtx && bgmGain) {
+      setupBgm();
+      startBgm();
     }
   }, [musicEnabled]);
 
@@ -170,52 +205,46 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     [sfxEnabled]
   );
 
-  // Initialize and unlock audio on interaction
+  // Initialize and unlock audio on real user interaction.
   useEffect(() => {
-    let unlocked = false;
-
-    const unlock = async () => {
-      if (unlocked) return;
-      unlocked = true;
-
+    const unlock = () => {
       initAudioSystem();
-      if (audioCtx?.state === "suspended") {
-        try {
-          await audioCtx.resume();
-        } catch (e) {
-          unlocked = false;
-          console.log("Audio resume deferred until interaction", e);
-          return;
-        }
-      }
       setupBgm();
-      
-      // Update gain nodes immediately based on props since context is just created
-      if (bgmGain) bgmGain.gain.value = musicEnabledRef.current ? 1 : 0;
-      if (sfxGain) sfxGain.gain.value = sfxEnabledRef.current ? 1 : 0;
+      syncGainState(musicEnabledRef.current, sfxEnabledRef.current);
+
+      if (audioCtx?.state === "suspended") {
+        audioCtx
+          .resume()
+          .then(() => {
+            audioUnlocked = true;
+            if (musicEnabledRef.current) {
+              startBgm();
+            }
+          })
+          .catch(() => {
+            audioUnlocked = false;
+          });
+      } else if (audioCtx) {
+        audioUnlocked = true;
+      }
 
       if (musicEnabledRef.current) {
-        await startBgm();
+        startBgm();
       }
     };
 
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
-    window.addEventListener("touchstart", unlock, { once: true, passive: true });
+    window.addEventListener("pointerdown", unlock, { capture: true });
+    window.addEventListener("click", unlock, { capture: true });
+    window.addEventListener("keydown", unlock, { capture: true });
+    window.addEventListener("touchstart", unlock, { capture: true, passive: true });
 
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("pointerdown", unlock, { capture: true });
+      window.removeEventListener("click", unlock, { capture: true });
+      window.removeEventListener("keydown", unlock, { capture: true });
+      window.removeEventListener("touchstart", unlock, { capture: true });
     };
   }, []); // Only run once to attach unlock listeners
-
-  useEffect(() => {
-    // If music is toggled on and we already have context, ensure it plays
-    if (musicEnabled && bgmGain && audioCtx) {
-      startBgm();
-    }
-  }, [musicEnabled]);
 
   // Global button SFX listener
   useEffect(() => {

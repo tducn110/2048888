@@ -4,6 +4,7 @@ export default function GameHeader({ bgId }: { bgId: number }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", pointerEvents: "none" }}>
       <div 
+        className="game-mascot-wrap"
         style={{ 
           width: "clamp(64px, min(28vw, 18dvh), 118px)",
           height: "clamp(64px, min(28vw, 18dvh), 118px)",

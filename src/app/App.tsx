@@ -2,10 +2,11 @@ import { useState } from "react";
 import Game2048 from "@/components/game/Game2048";
 import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
 import { useLocalStats } from "@/hooks/useLocalStats";
+import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
 
-type Screen = "game" | "settings";
+type Screen = "dashboard" | "game" | "settings";
 
 export default function App() {
   const { stats, recordGame } = useLocalStats();
@@ -17,10 +18,11 @@ export default function App() {
   const keepGameMounted = screen === "game" || screen === "settings";
 
   return (
-    <div style={{
-      minHeight: "100vh",
+    <div className="app-shell" style={{
+      minHeight: "100svh",
       height: "100dvh",
       width: "100vw",
+      maxWidth: "100vw",
       overflowX: "hidden",
       overflowY: "hidden",
       overscrollBehavior: "none",
@@ -35,11 +37,12 @@ export default function App() {
       <CountrysideBackdrop themeId={bgId} />
 
       {/* Main content */}
-      <main style={{
+      <main className={screen === "game" ? "app-main app-main--game" : "app-main"} style={{
         position: "relative",
         zIndex: 1,
         width: "100%",
-        maxWidth: 460,
+        maxWidth: screen === "dashboard" ? 520 : 460,
+        minHeight: 0,
         height: "100%",
         padding: "max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left))",
         boxSizing: "border-box",
@@ -49,17 +52,27 @@ export default function App() {
         justifyContent: "center",
         gap: 20,
       }}>
+        {screen === "dashboard" && (
+          <Dashboard
+            username="Khách"
+            bestScore={stats.bestScore}
+            stats={stats}
+            onPlay={() => setScreen("game")}
+          />
+        )}
+
         {keepGameMounted && (
           <>
-            <div style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
+            <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
               <Game2048 
                 bestScore={stats.bestScore} 
-                onGameEnd={(score) => {
-                  recordGame(score);
+                onGameEnd={(score, maxTile) => {
+                  recordGame(score, maxTile);
                 }} 
                 bgId={bgId} 
                 setBgId={setBgId} 
                 onSettings={() => setScreen("settings")}
+                onDashboard={() => setScreen("dashboard")}
                 playSfx={playSfx}
                 inputEnabled={screen === "game"}
               />

@@ -7,14 +7,14 @@ interface MascotProps {
 }
 
 const STATIC_MASCOTS: Record<MascotKind, string> = {
-  peanut: "/assets/optimized/peanut_static-180.webp",
+  peanut: "/assets/optimized/cat_mascot_nobg-360.webp",
   banhtung: "/assets/optimized/016_avatar_banhtung_nobg-180.webp",
   tiguayel: "/assets/optimized/017_avatar_tiguayel_nobg-180.webp",
   dogoin: "/assets/optimized/035_avatar_dogoin_nobg-180.webp",
 };
 
 const MASCOT_SCALE: Record<MascotKind, number> = {
-  peanut: 0.9,
+  peanut: 1.08,
   banhtung: 1.08,
   tiguayel: 1.1,
   dogoin: 1.18,

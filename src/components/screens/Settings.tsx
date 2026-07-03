@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import ThemedBackButton from "@/components/ui/ThemedBackButton";
 import { Music, Settings as SettingsIcon, Volume2, VolumeX } from "lucide-react";
 
 interface SettingsProps {
@@ -90,9 +91,7 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
         </div>
       </div>
 
-      <Button onClick={onBack} size="md" variant="secondary" style={{ marginTop: 8 }}>
-        ← Quay lại
-      </Button>
+      <ThemedBackButton onClick={onBack} size="md" style={{ marginTop: 8 }} />
     </div>
   );
 }
