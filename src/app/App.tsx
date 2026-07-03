@@ -14,8 +14,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const { playSfx } = useGameAudio(musicEnabled, sfxEnabled);
+  const { playSfx, audioStatus, unlockAudio } = useGameAudio(musicEnabled, sfxEnabled);
   const keepGameMounted = screen === "game" || screen === "settings";
 
   return (
@@ -36,45 +35,6 @@ export default function App() {
       position: "relative",
     }}>
       <CountrysideBackdrop themeId={bgId} />
-
-      {!hasInteracted && (
-        <div
-          onClick={() => setHasInteracted(true)}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(255, 255, 255, 0.85)",
-            backdropFilter: "blur(4px)",
-            WebkitBackdropFilter: "blur(4px)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            flexDirection: "column",
-            gap: 16
-          }}
-        >
-          <div style={{
-            padding: "14px 32px",
-            backgroundColor: "var(--wood-dark)",
-            color: "#fff",
-            borderRadius: 999,
-            fontWeight: 700,
-            fontSize: 20,
-            boxShadow: "0 8px 16px rgba(0,0,0,0.15)",
-            animation: "mascotBreathe 2s infinite"
-          }}>
-            Chơi ngay
-          </div>
-          <div style={{ color: "var(--wood-dark)", fontWeight: 600, fontSize: 14, opacity: 0.8 }}>
-            Chạm để bắt đầu
-          </div>
-        </div>
-      )}
 
       {/* Main content */}
       <main className={screen === "game" ? "app-main app-main--game" : "app-main"} style={{
@@ -114,7 +74,9 @@ export default function App() {
                 onSettings={() => setScreen("settings")}
                 onDashboard={() => setScreen("dashboard")}
                 playSfx={playSfx}
-                inputEnabled={screen === "game" && hasInteracted}
+                audioStatus={audioStatus}
+                unlockAudio={unlockAudio}
+                inputEnabled={screen === "game" && audioStatus === "ready"}
               />
             </div>
 

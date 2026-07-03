@@ -5,7 +5,7 @@ import GameHeader from "./GameHeader";
 import GameHUD from "./GameHUD";
 import type { Direction } from "@/types";
 import Button from "@/components/ui/Button";
-import { Trophy, RefreshCw, AlertTriangle, ChartColumnBig, Settings } from "lucide-react";
+import { Trophy, RefreshCw, AlertTriangle, ChartColumnBig, Settings, Loader2 } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
@@ -18,10 +18,12 @@ interface Game2048Props {
   onSettings: () => void;
   onDashboard: () => void;
   playSfx: (name: GameSfx) => void;
+  audioStatus: "idle" | "loading" | "ready";
+  unlockAudio: () => void;
   inputEnabled?: boolean;
 }
 
-export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, inputEnabled = true }: Game2048Props) {
+export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true }: Game2048Props) {
   const { tiles, score, scoreDelta, status, moveCount, move, reset, continueGame, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
 
@@ -176,6 +178,62 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         {/* Board */}
         <div className="game-board-shell" style={{ position: "relative" }}>
           <GameBoard tiles={tiles} onSwipe={handleSwipe} background={theme.boardBg} />
+
+          {/* Audio Unlock Overlay */}
+          {audioStatus !== "ready" && (
+            <div
+              onClick={() => {
+                if (audioStatus === "idle") {
+                  unlockAudio();
+                }
+              }}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                backgroundColor: "rgba(255, 255, 255, 0.8)",
+                backdropFilter: "blur(4px)",
+                WebkitBackdropFilter: "blur(4px)",
+                zIndex: 50,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: 12,
+                cursor: audioStatus === "idle" ? "pointer" : "default",
+                borderRadius: 12,
+              }}
+            >
+              {audioStatus === "idle" ? (
+                <>
+                  <div style={{
+                    padding: "12px 24px",
+                    backgroundColor: "var(--wood-dark)",
+                    color: "#fff",
+                    borderRadius: 999,
+                    fontWeight: 700,
+                    fontSize: 16,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    animation: "mascotBreathe 2s infinite"
+                  }}>
+                    Chơi ngay
+                  </div>
+                  <div style={{ color: "var(--wood-dark)", fontWeight: 600, fontSize: 13, opacity: 0.8 }}>
+                    Chạm để bật âm thanh
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "var(--wood-dark)" }}>
+                  <Loader2 size={36} className="spinner" style={{ animation: "spin 1s linear infinite" }} />
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                    Đang tải âm thanh...
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Overlay: WON */}
           {status === "won" && (

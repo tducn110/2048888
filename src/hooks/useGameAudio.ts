@@ -132,6 +132,7 @@ function pauseBgm() {
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   const musicEnabledRef = useRef(musicEnabled);
   const sfxEnabledRef = useRef(sfxEnabled);
+  const [audioStatus, setAudioStatus] = useState<"idle" | "loading" | "ready">(audioUnlocked ? "ready" : "idle");
 
   useEffect(() => {
     musicEnabledRef.current = musicEnabled;
@@ -193,61 +194,82 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     [sfxEnabled]
   );
 
-  // Initialize and unlock audio on real user interaction.
-  useEffect(() => {
-    const unlock = () => {
-      initAudioSystem();
-      setupBgm();
-      syncGainState(musicEnabledRef.current, sfxEnabledRef.current);
+  const unlockAudio = useCallback(async () => {
+    if (audioUnlocked) {
+      setAudioStatus("ready");
+      return;
+    }
+    setAudioStatus("loading");
 
-      if (audioCtx?.state === "suspended") {
-        audioCtx.resume().catch(() => {});
-      }
+    // 1. Sync actions for iOS
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       
-      if (audioCtx) {
-        // Play a silent buffer to truly unlock Web Audio on iOS
-        const buffer = audioCtx.createBuffer(1, 1, 22050);
-        const source = audioCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioCtx.destination);
-        source.start(0);
-      }
-      
-      audioUnlocked = true;
+    if (!audioCtx && AudioContextClass) {
+      audioCtx = new AudioContextClass();
+      sfxGain = audioCtx.createGain();
+      sfxGain.connect(audioCtx.destination);
+    }
+    
+    setupBgm();
+    syncGainState(musicEnabledRef.current, sfxEnabledRef.current);
 
-      // On iOS, we must call play() synchronously in the event handler to unlock the element.
-      if (bgmElement && bgmElement.paused) {
-        const p = bgmElement.play();
-        if (p !== undefined) {
-          p.then(() => {
-            bgmStarted = true;
-            // If music is actually disabled in settings, pause immediately after unlocking
-            if (!musicEnabledRef.current) {
-              bgmElement?.pause();
-              bgmStarted = false;
-              bgmDesiredPlaying = false;
-            } else {
-              bgmDesiredPlaying = true;
-            }
-          }).catch(() => {
+    if (audioCtx?.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+    
+    if (audioCtx) {
+      // Play a silent buffer to truly unlock Web Audio on iOS
+      const buffer = audioCtx.createBuffer(1, 1, 22050);
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtx.destination);
+      source.start(0);
+    }
+    
+    let p: Promise<void> | undefined;
+    if (bgmElement && bgmElement.paused) {
+      p = bgmElement.play();
+    }
+
+    audioUnlocked = true;
+
+    // 2. Async actions (Loading SFX buffers & waiting for BGM play to resolve)
+    const promises: Promise<void>[] = [];
+    if (p !== undefined) {
+      promises.push(
+        p.then(() => {
+          bgmStarted = true;
+          if (!musicEnabledRef.current) {
+            bgmElement?.pause();
             bgmStarted = false;
-          });
-        }
-      }
-    };
+            bgmDesiredPlaying = false;
+          } else {
+            bgmDesiredPlaying = true;
+          }
+        }).catch(() => {
+          bgmStarted = false;
+        })
+      );
+    }
 
-    window.addEventListener("pointerdown", unlock, { capture: true });
-    window.addEventListener("click", unlock, { capture: true });
-    window.addEventListener("keydown", unlock, { capture: true });
-    window.addEventListener("touchstart", unlock, { capture: true, passive: true });
+    Object.entries(SFX_SOURCES).forEach(([key, source]) => {
+      if (sfxBuffers[key as GameSfx]) return;
+      const src = pickSfxSource(source);
+      const fetchPromise = fetch(src)
+        .then(res => res.arrayBuffer())
+        .then(buffer => audioCtx!.decodeAudioData(buffer))
+        .then(audioBuffer => {
+          sfxBuffers[key as GameSfx] = audioBuffer;
+        })
+        .catch(e => console.error("Failed to load sfx", src, e));
+      promises.push(fetchPromise);
+    });
 
-    return () => {
-      window.removeEventListener("pointerdown", unlock, { capture: true });
-      window.removeEventListener("click", unlock, { capture: true });
-      window.removeEventListener("keydown", unlock, { capture: true });
-      window.removeEventListener("touchstart", unlock, { capture: true });
-    };
-  }, []); // Only run once to attach unlock listeners
+    await Promise.all(promises);
+    setAudioStatus("ready");
+  }, []);
 
   // Global button SFX listener
   useEffect(() => {
@@ -301,5 +323,5 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     };
   }, []);
 
-  return { playSfx };
+  return { playSfx, audioStatus, unlockAudio };
 }

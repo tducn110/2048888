@@ -254,3 +254,12 @@ body {
   animation: circle-out 0.7s cubic-bezier(0.25, 1, 0.5, 1);
   z-index: 2;
 }
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
