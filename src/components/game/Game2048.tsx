@@ -91,8 +91,8 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       <div
         className="game-title-row"
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(76px, 1fr) auto minmax(76px, 1fr)",
+          display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
           gap: 8,
           width: "100%",
@@ -100,7 +100,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
           zIndex: 3,
         }}
       >
-        <span aria-hidden="true" />
         <h1
           className="game-title"
           style={{
@@ -110,7 +109,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             color: theme.titleColor,
             margin: 0,
             lineHeight: 0.95,
-            textAlign: "center",
+            textAlign: "left",
             letterSpacing: 0,
             textShadow: theme.titleShadow,
             whiteSpace: "nowrap",
