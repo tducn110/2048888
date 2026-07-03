@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const MUSIC_SRC = "/assets/audio/music.mp3";
 const MUSIC_VOLUME = 0.05; // Background < SFX
