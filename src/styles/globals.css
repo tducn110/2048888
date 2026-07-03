@@ -84,7 +84,7 @@ body {
   }
 
   .app-main--game {
-    justify-content: flex-start !important;
+    justify-content: center !important;
     align-items: center !important;
     gap: 0 !important;
     height: 100dvh !important;
