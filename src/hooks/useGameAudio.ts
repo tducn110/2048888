@@ -274,5 +274,32 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     };
   }, [playSfx]);
 
+  // Handle visibility change (tab switch / minimize)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (bgmElement && !bgmElement.paused) {
+          bgmElement.pause();
+        }
+        if (audioCtx && audioCtx.state === "running") {
+          audioCtx.suspend().catch(() => {});
+        }
+      } else {
+        if (musicEnabledRef.current && bgmElement) {
+          bgmElement.play().catch(() => {});
+        }
+        // Always try to resume AudioContext when returning if it was suspended
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume().catch(() => {});
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   return { playSfx };
 }
