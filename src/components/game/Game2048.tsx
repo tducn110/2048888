@@ -89,48 +89,61 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       }}
     >
       <div
-        className="game-card-actions"
+        className="game-title-row"
         style={{
-          position: "absolute",
-          top: 18,
-          right: "clamp(10px, 3.6vw, 18px)",
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "minmax(76px, 1fr) auto minmax(76px, 1fr)",
+          alignItems: "center",
           gap: 8,
-          zIndex: 2,
+          width: "100%",
+          position: "relative",
+          zIndex: 3,
         }}
       >
-        <IconButton
-          ariaLabel="Mở bảng điểm"
-          onClick={onDashboard}
-          theme={theme}
+        <span aria-hidden="true" />
+        <h1
+          className="game-title"
+          style={{
+            fontFamily: "'Be Vietnam Pro', sans-serif",
+            fontWeight: 800,
+            fontSize: "clamp(30px, min(13vw, 8dvh), 58px)",
+            color: theme.titleColor,
+            margin: 0,
+            lineHeight: 0.95,
+            textAlign: "center",
+            letterSpacing: 0,
+            textShadow: theme.titleShadow,
+            whiteSpace: "nowrap",
+          }}
         >
-          <ChartColumnBig size={21} />
-        </IconButton>
-        <IconButton
-          ariaLabel="Cài đặt"
-          onClick={onSettings}
-          theme={theme}
-        >
-          <Settings size={22} />
-        </IconButton>
-      </div>
+          2048
+        </h1>
 
-      <h1
-        className="game-title"
-        style={{
-          fontFamily: "'Be Vietnam Pro', sans-serif",
-          fontWeight: 800,
-          fontSize: "clamp(30px, min(13vw, 8dvh), 58px)",
-          color: theme.titleColor,
-          margin: "0 clamp(46px, 18vw, 96px) 0 0",
-          lineHeight: 0.95,
-          textAlign: "center",
-          letterSpacing: 0,
-          textShadow: theme.titleShadow,
-        }}
-      >
-        2048
-      </h1>
+        <div
+          className="game-card-actions"
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+            zIndex: 2,
+          }}
+        >
+          <IconButton
+            ariaLabel="Mở bảng điểm"
+            onClick={onDashboard}
+            theme={theme}
+          >
+            <ChartColumnBig size={21} />
+          </IconButton>
+          <IconButton
+            ariaLabel="Cài đặt"
+            onClick={onSettings}
+            theme={theme}
+          >
+            <Settings size={22} />
+          </IconButton>
+        </div>
+      </div>
 
       <div className="game-header-row" style={{ display: "grid", gridTemplateColumns: "clamp(64px, min(28vw, 18dvh), 118px) minmax(0, 1fr)", alignItems: "end", width: "100%", columnGap: "clamp(6px, 2.4vw, 9px)", boxSizing: "border-box" }}>
         <GameHeader bgId={bgId} />

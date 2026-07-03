@@ -12,7 +12,7 @@ interface GameHUDProps {
 export default function GameHUD({ score, bestScore, scoreDelta, onReset, theme }: GameHUDProps) {
   return (
     <GameControls>
-      <div className="game-score-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div className="game-score-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
         <ScoreCard label="Điểm" value={score} delta={scoreDelta} theme={theme} />
         <ScoreCard label="Tốt nhất" value={bestScore} theme={theme} />
       </div>
@@ -61,7 +61,7 @@ function InstructionCard({ theme }: { theme: GameTheme }) {
         border: `2px solid ${theme.scoreCardBorder}`,
         color: theme.instructionTextColor,
         fontFamily: "'Be Vietnam Pro', sans-serif",
-        fontSize: "clamp(8px, 2.8vw, 9px)",
+        fontSize: "clamp(8px, 2.6vw, 9px)",
         fontWeight: 800,
         lineHeight: 1.18,
         padding: `7px 8px 7px clamp(8px, 4vw, ${theme.joinPanelPaddingLeft}px)`,
@@ -141,11 +141,13 @@ function ScoreCard({
         style={{
           fontSize: "clamp(8px, 2.8vw, 10px)",
           fontWeight: 700,
-          letterSpacing: "0.1em",
+          letterSpacing: "0.04em",
           textTransform: "uppercase",
           color: theme.labelColor,
           textAlign: "center",
           lineHeight: 1.1,
+          whiteSpace: "nowrap",
+          maxWidth: "100%",
         }}
       >
         {label}
