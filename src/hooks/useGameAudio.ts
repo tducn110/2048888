@@ -44,10 +44,8 @@ function shouldPlayButtonSfx(target: EventTarget | null) {
 
 // Global Web Audio API Context
 let audioCtx: AudioContext | null = null;
-let bgmGain: GainNode | null = null;
 let sfxGain: GainNode | null = null;
 let bgmElement: HTMLAudioElement | null = null;
-let bgmSource: MediaElementAudioSourceNode | null = null;
 let bgmStarted = false;
 let bgmPlayPromise: Promise<void> | null = null;
 let bgmDesiredPlaying = false;
@@ -69,10 +67,7 @@ function initAudioSystem() {
   if (!AudioContextClass) return;
   audioCtx = new AudioContextClass();
   
-  bgmGain = audioCtx.createGain();
   sfxGain = audioCtx.createGain();
-
-  bgmGain.connect(audioCtx.destination);
   sfxGain.connect(audioCtx.destination);
 
   // Load SFX buffers
@@ -90,25 +85,17 @@ function initAudioSystem() {
 }
 
 function setupBgm() {
-  if (!audioCtx || !bgmGain) return;
   if (bgmElement) return;
 
   bgmElement = new Audio(MUSIC_SRC);
   bgmElement.loop = true;
   bgmElement.preload = "auto";
   bgmElement.setAttribute("playsinline", "true");
-  // Keep element volume at 1; Web Audio gain controls the mix.
-
-  bgmSource = audioCtx.createMediaElementSource(bgmElement);
-  const localGain = audioCtx.createGain();
-  localGain.gain.value = MUSIC_VOLUME;
-  
-  bgmSource.connect(localGain);
-  localGain.connect(bgmGain);
+  bgmElement.volume = MUSIC_VOLUME;
 }
 
 function syncGainState(musicEnabled: boolean, sfxEnabled: boolean) {
-  if (bgmGain) bgmGain.gain.value = musicEnabled ? 1 : 0;
+  if (bgmElement) bgmElement.volume = musicEnabled ? MUSIC_VOLUME : 0;
   if (sfxGain) sfxGain.gain.value = sfxEnabled ? 1 : 0;
 }
 
@@ -126,7 +113,8 @@ function startBgm() {
         bgmElement?.pause();
       }
     })
-    .catch(() => {
+    .catch((err) => {
+      console.warn("BGM play failed, retrying on next interaction", err);
       bgmStarted = false;
     })
     .finally(() => {
@@ -155,8 +143,8 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
 
   // Sync mute state to gain nodes
   useEffect(() => {
-    if (bgmGain) {
-      bgmGain.gain.value = musicEnabled ? 1 : 0;
+    if (bgmElement) {
+      bgmElement.volume = musicEnabled ? MUSIC_VOLUME : 0;
     }
 
     if (!musicEnabled) {
@@ -164,7 +152,7 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
       return;
     }
 
-    if (audioUnlocked && audioCtx && bgmGain) {
+    if (audioUnlocked) {
       setupBgm();
       startBgm();
     }
@@ -213,23 +201,29 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
       syncGainState(musicEnabledRef.current, sfxEnabledRef.current);
 
       if (audioCtx?.state === "suspended") {
-        audioCtx
-          .resume()
-          .then(() => {
-            audioUnlocked = true;
-            if (musicEnabledRef.current) {
-              startBgm();
-            }
-          })
-          .catch(() => {
-            audioUnlocked = false;
-          });
-      } else if (audioCtx) {
-        audioUnlocked = true;
+        audioCtx.resume().catch(() => {});
       }
+      
+      audioUnlocked = true;
 
-      if (musicEnabledRef.current) {
-        startBgm();
+      // On iOS, we must call play() synchronously in the event handler to unlock the element.
+      if (bgmElement && bgmElement.paused) {
+        const p = bgmElement.play();
+        if (p !== undefined) {
+          p.then(() => {
+            bgmStarted = true;
+            // If music is actually disabled in settings, pause immediately after unlocking
+            if (!musicEnabledRef.current) {
+              bgmElement?.pause();
+              bgmStarted = false;
+              bgmDesiredPlaying = false;
+            } else {
+              bgmDesiredPlaying = true;
+            }
+          }).catch(() => {
+            bgmStarted = false;
+          });
+        }
       }
     };
 
