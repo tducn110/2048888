@@ -11,7 +11,7 @@ type Screen = "dashboard" | "game" | "settings";
 export default function App() {
   const { stats, recordGame } = useLocalStats();
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
-  const [screen, setScreen] = useState<Screen>("game");
+  const [screen, setScreen] = useState<Screen>("dashboard");
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const { playSfx } = useGameAudio(musicEnabled, sfxEnabled);
