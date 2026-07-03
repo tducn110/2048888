@@ -182,11 +182,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
           {/* Audio Unlock Overlay */}
           {audioStatus !== "ready" && (
             <div
-              onClick={() => {
-                if (audioStatus === "idle") {
-                  unlockAudio();
-                }
-              }}
               style={{
                 position: "absolute",
                 top: 0,
@@ -202,28 +197,27 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
                 justifyContent: "center",
                 flexDirection: "column",
                 gap: 12,
-                cursor: audioStatus === "idle" ? "pointer" : "default",
+                cursor: "default",
                 borderRadius: 12,
               }}
             >
               {audioStatus === "idle" ? (
-                <>
-                  <div style={{
-                    padding: "12px 24px",
-                    backgroundColor: "var(--wood-dark)",
-                    color: "#fff",
-                    borderRadius: 999,
-                    fontWeight: 700,
-                    fontSize: 16,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                    animation: "mascotBreathe 2s infinite"
-                  }}>
-                    Chơi ngay
-                  </div>
-                  <div style={{ color: "var(--wood-dark)", fontWeight: 600, fontSize: 13, opacity: 0.8 }}>
-                    Chạm để bật âm thanh
-                  </div>
-                </>
+                <Button
+                  type="button"
+                  size="md"
+                  variant="primary"
+                  onClick={unlockAudio}
+                  style={{
+                    minWidth: 132,
+                    color: "#fff8ee",
+                    background: theme.ctaGradient,
+                    borderColor: theme.ctaBorder,
+                    boxShadow: theme.ctaShadow,
+                    animation: "mascotBreathe 2s infinite",
+                  }}
+                >
+                  Chơi ngay
+                </Button>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "var(--wood-dark)" }}>
                   <Loader2 size={36} className="spinner" style={{ animation: "spin 1s linear infinite" }} />

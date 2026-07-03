@@ -59,31 +59,6 @@ function pickSfxSource(source: (typeof SFX_SOURCES)[GameSfx]) {
   return supportsOgg ? source.ogg : source.mp3;
 }
 
-function initAudioSystem() {
-  if (audioCtx) return;
-  const AudioContextClass =
-    window.AudioContext ||
-    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextClass) return;
-  audioCtx = new AudioContextClass();
-  
-  sfxGain = audioCtx.createGain();
-  sfxGain.connect(audioCtx.destination);
-
-  // Load SFX buffers
-  Object.entries(SFX_SOURCES).forEach(async ([key, source]) => {
-    const src = pickSfxSource(source);
-    try {
-      const response = await fetch(src);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioCtx!.decodeAudioData(arrayBuffer);
-      sfxBuffers[key as GameSfx] = audioBuffer;
-    } catch (e) {
-      console.error("Failed to load sfx", src, e);
-    }
-  });
-}
-
 function setupBgm() {
   if (bgmElement) return;
 

@@ -74,6 +74,48 @@ body {
   }
 }
 
+@media (min-width: 768px) and (min-height: 720px) {
+  .app-main--game {
+    max-width: 700px !important;
+    padding: 20px !important;
+  }
+
+  .game-card {
+    max-width: min(
+      560px,
+      calc(100dvh - 190px - env(safe-area-inset-top) - env(safe-area-inset-bottom))
+    ) !important;
+    padding: 20px 22px 24px !important;
+    gap: 18px !important;
+    border-radius: 32px !important;
+  }
+
+  .game-title {
+    font-size: clamp(64px, 7.2dvh, 82px) !important;
+  }
+
+  .game-header-row {
+    grid-template-columns: 144px minmax(0, 1fr) !important;
+    column-gap: 14px !important;
+  }
+
+  .game-mascot-wrap {
+    width: 144px !important;
+    height: 144px !important;
+  }
+
+  .game-board-frame {
+    padding: 12px !important;
+    border-radius: 20px !important;
+  }
+
+  .game-board-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    aspect-ratio: 1 / 1;
+  }
+}
+
 @media (max-width: 640px) {
   html,
   body,
