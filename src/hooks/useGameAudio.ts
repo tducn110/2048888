@@ -204,6 +204,15 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
         audioCtx.resume().catch(() => {});
       }
       
+      if (audioCtx) {
+        // Play a silent buffer to truly unlock Web Audio on iOS
+        const buffer = audioCtx.createBuffer(1, 1, 22050);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+      }
+      
       audioUnlocked = true;
 
       // On iOS, we must call play() synchronously in the event handler to unlock the element.
