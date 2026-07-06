@@ -5,7 +5,7 @@ import GameHeader from "./GameHeader";
 import GameHUD from "./GameHUD";
 import type { Direction } from "@/types";
 import Button from "@/components/ui/Button";
-import { Trophy, RefreshCw, AlertTriangle, ChartColumnBig, Settings, Loader2 } from "lucide-react";
+import { RefreshCw, AlertTriangle, ChartColumnBig, Settings, Loader2 } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
@@ -24,7 +24,7 @@ interface Game2048Props {
 }
 
 export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true }: Game2048Props) {
-  const { tiles, score, scoreDelta, status, moveCount, move, reset, continueGame, revive, doubleScore } = use2048Game(inputEnabled);
+  const { tiles, score, scoreDelta, status, moveCount, move, reset, revive } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
 
   // Record game result exactly once per terminal status transition
@@ -33,7 +33,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const previousStatusRef = useRef(status);
 
   useEffect(() => {
-    if ((status === "won" || status === "lost") && !recordedRef.current) {
+    if (status === "lost" && !recordedRef.current) {
       recordedRef.current = true;
       onGameEnd(score, getMaxTile(tiles));
     }
@@ -41,7 +41,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
 
   useEffect(() => {
     if (status !== previousStatusRef.current) {
-      if (status === "won") playSfx("win");
       if (status === "lost") playSfx("lose");
       previousStatusRef.current = status;
     }
@@ -227,32 +226,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
                 </div>
               )}
             </div>
-          )}
-
-          {/* Overlay: WON */}
-          {status === "won" && (
-            <GameOverlay
-              icon={<Trophy size={40} color="#f0b840" />}
-              title="Huyền Thoại!"
-              subtitle={`Bạn đã đạt ${score.toLocaleString("vi-VN")} điểm`}
-              titleColor="#d09a25"
-              theme={theme}
-            >
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-                <Button
-                  onClick={() => { doubleScore(); continueGame(); }}
-                  size="md"
-                  variant="primary"
-                  style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}
-                >
-                  ▶ Xem QC x2 Điểm
-                </Button>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  <Button onClick={continueGame} size="md" variant="secondary" style={{ flex: 1 }}>Tiếp tục</Button>
-                  <Button onClick={handleReset} variant="secondary" size="md" style={{ flex: 1 }}>Ván mới</Button>
-                </div>
-              </div>
-            </GameOverlay>
           )}
 
           {/* Overlay: LOST */}

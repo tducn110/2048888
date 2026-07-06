@@ -3,7 +3,6 @@ import {
   addRandomTile,
   canMove,
   createInitialTiles,
-  hasWon,
   moveBoard,
 } from "@/utils/gameLogic";
 import type { BoardState, Direction, GameSnapshot, GameStatus } from "@/types";
@@ -17,7 +16,6 @@ type Action =
   | { type: "MOVE"; direction: Direction }
   | { type: "RESET" }
   | { type: "UNDO" }
-  | { type: "CONTINUE" }
   | { type: "REVIVE" }
   | { type: "DOUBLE_SCORE" };
 
@@ -36,7 +34,6 @@ function reducer(state: State, action: Action): State {
     case "MOVE": {
       const { current } = state;
       if (current.status === "lost") return state;
-      if (current.status === "won") return state; // must press CONTINUE
 
       const { tiles: moved, scoreDelta, moved: didMove } = moveBoard(
         current.tiles,
@@ -54,8 +51,7 @@ function reducer(state: State, action: Action): State {
       const newScore = current.score + scoreDelta;
 
       let status: GameStatus = "playing";
-      if (hasWon(withSpawn)) status = "won";
-      else if (!canMove(withSpawn)) status = "lost";
+      if (!canMove(withSpawn)) status = "lost";
 
       return {
         previous: snapshot,
@@ -105,10 +101,6 @@ function reducer(state: State, action: Action): State {
         },
       };
     }
-    case "CONTINUE": {
-      if (state.current.status !== "won") return state;
-      return { ...state, current: { ...state.current, status: "playing" } };
-    }
     case "RESET":
       return { current: makeFreshBoard(), previous: null };
     default:
@@ -128,7 +120,6 @@ export function use2048Game(inputEnabled = true) {
 
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
   const undo = useCallback(() => dispatch({ type: "UNDO" }), []);
-  const continueGame = useCallback(() => dispatch({ type: "CONTINUE" }), []);
   const revive = useCallback(() => dispatch({ type: "REVIVE" }), []);
   const doubleScore = useCallback(() => dispatch({ type: "DOUBLE_SCORE" }), []);
 
@@ -170,7 +161,6 @@ export function use2048Game(inputEnabled = true) {
     move,
     reset,
     undo,
-    continueGame,
     revive,
     doubleScore,
   };
