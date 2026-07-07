@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { use2048Game } from "@/hooks/use2048Game";
 import GameBoard from "./GameBoard";
 import GameHeader from "./GameHeader";
@@ -21,23 +21,34 @@ interface Game2048Props {
   audioStatus: "idle" | "loading" | "ready";
   unlockAudio: () => void;
   inputEnabled?: boolean;
+  onScoreDoubled?: (newScore: number) => void;
 }
 
-export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true }: Game2048Props) {
-  const { tiles, score, scoreDelta, status, moveCount, move, reset, revive } = use2048Game(inputEnabled);
+export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, onScoreDoubled }: Game2048Props) {
+  const { tiles, score, scoreDelta, status, moveCount, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
 
   // Record game result exactly once per terminal status transition
   const recordedRef = useRef(false);
   const previousMoveCountRef = useRef(0);
   const previousStatusRef = useRef(status);
+  
+  const [showContinue, setShowContinue] = useState(true);
+  const [isScoreDoubled, setIsScoreDoubled] = useState(false);
 
   useEffect(() => {
-    if (status === "lost" && !recordedRef.current) {
+    if (status === "playing") {
+      setShowContinue(true);
+      setIsScoreDoubled(false);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (status === "lost" && !showContinue && !recordedRef.current) {
       recordedRef.current = true;
       onGameEnd(score, getMaxTile(tiles));
     }
-  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [status, showContinue, score, tiles, onGameEnd]);
 
   useEffect(() => {
     if (status !== previousStatusRef.current) {
@@ -228,8 +239,33 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             </div>
           )}
 
-          {/* Overlay: LOST */}
-          {status === "lost" && (
+          {/* Overlay: LOST (Continue?) */}
+          {status === "lost" && showContinue && (
+            <GameOverlay
+              icon={<AlertTriangle size={40} color={theme.danger} />}
+              title="Tiếp tục?"
+              subtitle="Bạn có muốn hồi sinh không?"
+              titleColor={theme.danger}
+              theme={theme}
+            >
+              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+                <Button
+                  onClick={() => { revive(); }}
+                  size="md"
+                  variant="primary"
+                  style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}
+                >
+                  ❤️ Có
+                </Button>
+                <Button onClick={() => setShowContinue(false)} size="md" variant="secondary">
+                  Không
+                </Button>
+              </div>
+            </GameOverlay>
+          )}
+
+          {/* Overlay: LOST (Final Results) */}
+          {status === "lost" && !showContinue && (
             <GameOverlay
               icon={<AlertTriangle size={40} color={theme.danger} />}
               title="Hết Đường!"
@@ -238,14 +274,20 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
               theme={theme}
             >
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-                <Button
-                  onClick={() => { recordedRef.current = false; revive(); }}
-                  size="md"
-                  variant="primary"
-                  style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}
-                >
-                  ▶ Xem QC Cứu Hộ (Tiếp tục)
-                </Button>
+                {!isScoreDoubled && (
+                  <Button
+                    onClick={() => { 
+                      setIsScoreDoubled(true);
+                      doubleScore();
+                      onScoreDoubled?.(score * 2);
+                    }}
+                    size="md"
+                    variant="primary"
+                    style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}
+                  >
+                    x2 Điểm
+                  </Button>
+                )}
                 <Button onClick={handleReset} size="md" variant="secondary">
                   <RefreshCw size={16} /> Thử lại
                 </Button>

@@ -61,5 +61,21 @@ export function useLocalStats() {
     setStats(fresh);
   }, []);
 
-  return { stats, recordGame, clearStats };
+  const updateLastGameScore = useCallback((newScore: number) => {
+    setStats((prev) => {
+      if (prev.history.length === 0) return prev;
+      const latest = prev.history[0];
+      const updatedLatest = { ...latest, score: newScore };
+      const next: LocalStats = {
+        ...prev,
+        bestScore: Math.max(prev.bestScore, newScore),
+        lastScore: newScore,
+        history: [updatedLatest, ...prev.history.slice(1)],
+      };
+      persistStats(next);
+      return next;
+    });
+  }, []);
+
+  return { stats, recordGame, clearStats, updateLastGameScore };
 }

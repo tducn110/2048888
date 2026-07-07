@@ -9,7 +9,7 @@ import { useGameAudio } from "@/hooks/useGameAudio";
 type Screen = "dashboard" | "game" | "settings";
 
 export default function App() {
-  const { stats, recordGame } = useLocalStats();
+  const { stats, recordGame, updateLastGameScore } = useLocalStats();
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
@@ -68,6 +68,9 @@ export default function App() {
                 bestScore={stats.bestScore} 
                 onGameEnd={(score, maxTile) => {
                   recordGame(score, maxTile);
+                }} 
+                onScoreDoubled={(newScore) => {
+                  updateLastGameScore(newScore);
                 }} 
                 bgId={bgId} 
                 setBgId={setBgId} 

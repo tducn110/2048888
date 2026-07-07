@@ -66,9 +66,12 @@ function reducer(state: State, action: Action): State {
     }
     case "REVIVE": {
       if (state.current.status !== "lost") return state;
-      // Remove the 4 lowest value tiles to make room
-      const sortedTiles = [...state.current.tiles].sort((a, b) => a.value - b.value);
-      const toKeep = sortedTiles.slice(4); // remove lowest 4
+      // Remove a 3x3 area
+      const r0 = Math.floor(Math.random() * 2);
+      const c0 = Math.floor(Math.random() * 2);
+      const toKeep = state.current.tiles.filter(
+        t => !(t.r >= r0 && t.r <= r0 + 2 && t.c >= c0 && t.c <= c0 + 2)
+      );
       return {
         ...state,
         current: {
