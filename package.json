@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "build": "vite build",
     "dev": "vite",
@@ -34,14 +33,5 @@
     "typescript-eslint": "^8.61.1",
     "vite": "6.3.5",
     "vitest": "^2.1.9"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "@tailwindcss/oxide"
-    ]
-  },
-  "resolutions": {
-    "vite": "6.3.5"
   }
 }
