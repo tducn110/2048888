@@ -47,3 +47,4 @@ build/
 out/
 .vercel
 *.md
+.env*

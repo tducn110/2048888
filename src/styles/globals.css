@@ -305,3 +305,29 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Block Landscape Orientation on Mobile */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  body::before {
+    content: "Vui lòng xoay dọc điện thoại để trải nghiệm tốt nhất!";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #fdfbf7;
+    color: #4a4232;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-align: center;
+    z-index: 9999;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  #root {
+    display: none !important;
+  }
+}

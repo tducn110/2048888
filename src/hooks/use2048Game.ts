@@ -6,17 +6,15 @@ import {
   moveBoard,
   removeReviveTiles,
 } from "@/utils/gameLogic";
-import type { BoardState, Direction, GameSnapshot, GameStatus } from "@/types";
+import type { BoardState, Direction, GameStatus } from "@/types";
 
 interface State {
   current: BoardState;
-  previous: GameSnapshot | null;
 }
 
 type Action =
   | { type: "MOVE"; direction: Direction }
   | { type: "RESET" }
-  | { type: "UNDO" }
   | { type: "REVIVE" }
   | { type: "DOUBLE_SCORE" };
 
@@ -42,12 +40,6 @@ function reducer(state: State, action: Action): State {
       );
       if (!didMove) return state;
 
-      const snapshot: GameSnapshot = {
-        tiles: current.tiles,
-        score: current.score,
-        moveCount: current.moveCount,
-      };
-
       const withSpawn = addRandomTile(moved);
       const newScore = current.score + scoreDelta;
 
@@ -55,7 +47,6 @@ function reducer(state: State, action: Action): State {
       if (!canMove(withSpawn)) status = "lost";
 
       return {
-        previous: snapshot,
         current: {
           tiles: withSpawn,
           score: newScore,
@@ -89,22 +80,8 @@ function reducer(state: State, action: Action): State {
         }
       };
     }
-    case "UNDO": {
-      // Allow undo even after lost — casual game should let the player recover
-      if (!state.previous) return state;
-      return {
-        previous: null,
-        current: {
-          tiles: state.previous.tiles,
-          score: state.previous.score,
-          scoreDelta: 0,
-          status: "playing",
-          moveCount: state.previous.moveCount,
-        },
-      };
-    }
     case "RESET":
-      return { current: makeFreshBoard(), previous: null };
+      return { current: makeFreshBoard() };
     default:
       return state;
   }
@@ -113,7 +90,6 @@ function reducer(state: State, action: Action): State {
 export function use2048Game(inputEnabled = true) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     current: makeFreshBoard(),
-    previous: null,
   }));
 
   const move = useCallback((dir: Direction) => {
@@ -121,7 +97,6 @@ export function use2048Game(inputEnabled = true) {
   }, []);
 
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
-  const undo = useCallback(() => dispatch({ type: "UNDO" }), []);
   const revive = useCallback(() => dispatch({ type: "REVIVE" }), []);
   const doubleScore = useCallback(() => dispatch({ type: "DOUBLE_SCORE" }), []);
 
@@ -159,10 +134,8 @@ export function use2048Game(inputEnabled = true) {
     scoreDelta: state.current.scoreDelta,
     status: state.current.status,
     moveCount: state.current.moveCount,
-    canUndo: state.previous !== null && state.current.status === "playing",
     move,
     reset,
-    undo,
     revive,
     doubleScore,
   };

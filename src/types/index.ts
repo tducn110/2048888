@@ -10,12 +10,6 @@ export interface TileCell {
   isMerged: boolean;
 }
 
-export interface GameSnapshot {
-  tiles: TileCell[];
-  score: number;
-  moveCount: number;
-}
-
 export interface HistoryEntry {
   date: string;
   score: number;
