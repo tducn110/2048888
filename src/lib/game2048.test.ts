@@ -14,6 +14,7 @@ import {
   addRandomTile,
   tilesToGrid,
   gridToTiles,
+  removeReviveTiles,
 } from "@/utils/gameLogic";
 import type { TileCell } from "@/types";
 
@@ -243,6 +244,26 @@ describe("addRandomTile", () => {
     ]);
     const result = addRandomTile(tiles);
     expect(result.length).toBe(16);
+  });
+});
+
+describe("removeReviveTiles", () => {
+  it("removes every 2 and 4 tile and keeps higher tiles", () => {
+    const tiles = fromGrid([
+      [2, 4, 8, 16],
+      [32, 2, 64, 4],
+      [128, 256, 512, 1024],
+      [2048, 4096, 8192, 16384],
+    ]);
+
+    const result = removeReviveTiles(tiles);
+
+    expect(toMatrix(result)).toEqual([
+      [0, 0, 8, 16],
+      [32, 0, 64, 0],
+      [128, 256, 512, 1024],
+      [2048, 4096, 8192, 16384],
+    ]);
   });
 });
 

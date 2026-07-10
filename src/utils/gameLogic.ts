@@ -129,6 +129,10 @@ export function addRandomTile(tiles: TileCell[]): TileCell[] {
   ];
 }
 
+export function removeReviveTiles(tiles: TileCell[]): TileCell[] {
+  return tiles.filter((tile) => tile.value !== 2 && tile.value !== 4);
+}
+
 export function canMove(tiles: TileCell[]): boolean {
   if (tiles.length < 16) return true;
 

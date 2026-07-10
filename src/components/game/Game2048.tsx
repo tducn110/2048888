@@ -37,13 +37,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const [isScoreDoubled, setIsScoreDoubled] = useState(false);
 
   useEffect(() => {
-    if (status === "playing") {
-      setShowContinue(true);
-      setIsScoreDoubled(false);
-    }
-  }, [status]);
-
-  useEffect(() => {
     if (status === "lost" && !showContinue && !recordedRef.current) {
       recordedRef.current = true;
       onGameEnd(score, getMaxTile(tiles));
@@ -71,8 +64,15 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
 
   const handleReset = () => {
     recordedRef.current = false;
+    setShowContinue(true);
+    setIsScoreDoubled(false);
     setBgId(getNextGameThemeId(bgId));
     reset();
+  };
+
+  const handleRevive = () => {
+    setShowContinue(false);
+    revive();
   };
 
   const handleSwipe = (dir: Direction) => {
@@ -250,7 +250,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             >
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
                 <Button
-                  onClick={() => { revive(); }}
+                  onClick={handleRevive}
                   size="md"
                   variant="primary"
                   style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}

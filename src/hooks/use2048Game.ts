@@ -4,6 +4,7 @@ import {
   canMove,
   createInitialTiles,
   moveBoard,
+  removeReviveTiles,
 } from "@/utils/gameLogic";
 import type { BoardState, Direction, GameSnapshot, GameStatus } from "@/types";
 
@@ -66,17 +67,15 @@ function reducer(state: State, action: Action): State {
     }
     case "REVIVE": {
       if (state.current.status !== "lost") return state;
-      // Remove a 3x3 area
-      const r0 = Math.floor(Math.random() * 2);
-      const c0 = Math.floor(Math.random() * 2);
-      const toKeep = state.current.tiles.filter(
-        t => !(t.r >= r0 && t.r <= r0 + 2 && t.c >= c0 && t.c <= c0 + 2)
-      );
+      const toKeep = removeReviveTiles(state.current.tiles);
+      if (toKeep.length === state.current.tiles.length) return state;
+
       return {
         ...state,
         current: {
           ...state.current,
           tiles: toKeep,
+          scoreDelta: 0,
           status: "playing",
         }
       };
