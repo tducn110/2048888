@@ -51,9 +51,6 @@ export default function Dashboard({ username, bestScore, stats, onPlay }: Dashbo
         <div style={{ fontSize: 32, lineHeight: 1.05, fontWeight: 800, color: "var(--orange-cta-edge)", fontFamily: "'Be Vietnam Pro', sans-serif" }}>
           {bestScore.toLocaleString("vi-VN")}
         </div>
-        <div style={{ fontSize: 11, color: "var(--ink-dark)", fontWeight: 800 }}>
-          Danh hiệu: {getRank(bestScore)}
-        </div>
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: 10, textAlign: "left", flex: 1, minHeight: 0 }}>
@@ -172,11 +169,6 @@ function RankingRow({
           {entry.name}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-          {label && (
-            <span style={{ color: "var(--orange-cta-edge)", fontSize: 10, fontWeight: 800 }}>
-              {label}
-            </span>
-          )}
           {entry.maxTile > 0 && (
             <span
               style={{
