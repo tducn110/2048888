@@ -5,9 +5,17 @@ import { useLocalStats } from "@/hooks/useLocalStats";
 import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
-import { useWinkIntegration } from "@/hooks/useWinkIntegration";
+import { useWinkIntegration } from "@/integrations/wink/useWinkIntegration";
 
 type Screen = "dashboard" | "game" | "settings";
+
+// UUID v4 — only used locally to correlate round events until the bridge
+// starts managing roundId ownership from the new full typed client.
+function newRoundId(): string {
+  const cr = globalThis.crypto;
+  if (cr && typeof cr.randomUUID === "function") return cr.randomUUID();
+  return `round-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
+}
 
 export default function App() {
   const { stats, recordGame, updateLastGameScore } = useLocalStats();
@@ -18,21 +26,79 @@ export default function App() {
   const { playSfx, audioStatus, unlockAudio, setParentMuted } = useGameAudio(musicEnabled, sfxEnabled);
   const keepGameMounted = screen === "game" || screen === "settings";
 
-  // Wink bridge integration
-  const {
-    winkPaused,
-    winkMuted,
-    onRoundStart,
-    onGameEnd: winkOnGameEnd,
-  } = useWinkIntegration();
+  // Wink bridge integration — full typed WinkIntegration
+  const wink = useWinkIntegration();
 
   // Apply parent mute to audio engine without touching user prefs
   useEffect(() => {
-    setParentMuted(winkMuted);
-  }, [winkMuted, setParentMuted]);
+    setParentMuted(wink.parentMuted);
+  }, [wink.parentMuted, setParentMuted]);
 
-  // inputEnabled: game requires audio to be ready AND not wink-paused AND on the game screen
-  const inputEnabled = screen === "game" && audioStatus === "ready" && !winkPaused;
+  // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
+  const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
+
+  /**
+   * Called at first tile move — opens a new semantic round.
+   * The roundId is kept alive through any revive step.
+   */
+  const [activeRoundId, setActiveRoundId] = useState<string | null>(null);
+  const [roundStartMs, setRoundStartMs] = useState<number>(0);
+
+  const onRoundStart = () => {
+    if (activeRoundId) return; // already active
+    const id = newRoundId();
+    setActiveRoundId(id);
+    setRoundStartMs(Date.now());
+  };
+
+  /**
+   * Called when the player confirms final game-over (declines revive or resets).
+   * Submits score then completes the round — both are independent operations.
+   */
+  const onGameEnd = async (
+    score: number,
+    _maxTile: number,
+    playTimeMs: number,
+    doubled: boolean,
+  ) => {
+    const roundId = activeRoundId;
+    setActiveRoundId(null);
+
+    if (!roundId) return;
+
+    const playTimeSec = Math.round(playTimeMs / 1000);
+
+    // Submit score first (independent from completion)
+    try {
+      await wink.submitFinalScore({
+        roundId,
+        score,
+        playTimeSec,
+        qualifies: true,
+      });
+    } catch (err: unknown) {
+      // CAPABILITY_DENIED is expected for anonymous — already handled by the
+      // hook setting the error state. Log unexpected errors only.
+      const code = (err as { code?: string })?.code;
+      if (code !== "CAPABILITY_DENIED") {
+        console.error("[Wink] submitFinalScore failed", err);
+      }
+    }
+
+    // Complete the round independently
+    try {
+      await wink.completeRound({
+        roundId,
+        playDurationMs: Math.max(0, playTimeMs ?? Date.now() - roundStartMs),
+      });
+    } catch (err: unknown) {
+      console.error("[Wink] completeRound failed", err);
+    }
+
+    // Persist local stats regardless of Wink outcome
+    recordGame(score, _maxTile);
+    if (doubled) updateLastGameScore(score);
+  };
 
   return (
     <div className="app-shell" style={{
@@ -52,6 +118,30 @@ export default function App() {
       position: "relative",
     }}>
       <CountrysideBackdrop themeId={bgId} />
+
+      {/* Wink error banner (visible failure for CAPABILITY_DENIED etc.) */}
+      {wink.error && wink.error.code === "CAPABILITY_DENIED" && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 100,
+            background: "rgba(180,30,30,0.92)",
+            color: "#fff",
+            padding: "8px 20px",
+            borderRadius: 8,
+            fontSize: 13,
+            maxWidth: "90vw",
+            textAlign: "center",
+          }}
+        >
+          {wink.error.message}
+        </div>
+      )}
 
       {/* Main content */}
       <main className={screen === "game" ? "app-main app-main--game" : "app-main"} style={{
@@ -81,18 +171,15 @@ export default function App() {
         {keepGameMounted && (
           <>
             <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
-              <Game2048 
-                bestScore={stats.bestScore} 
-                onGameEnd={(score, maxTile, playTimeMs, doubled) => {
-                  recordGame(score, maxTile);
-                  winkOnGameEnd(score, playTimeMs, doubled);
-                }} 
+              <Game2048
+                bestScore={stats.bestScore}
+                onGameEnd={onGameEnd}
                 onScoreDoubled={(newScore) => {
                   updateLastGameScore(newScore);
-                }} 
+                }}
                 onRoundStart={onRoundStart}
-                bgId={bgId} 
-                setBgId={setBgId} 
+                bgId={bgId}
+                setBgId={setBgId}
                 onSettings={() => setScreen("settings")}
                 onDashboard={() => setScreen("dashboard")}
                 playSfx={playSfx}
