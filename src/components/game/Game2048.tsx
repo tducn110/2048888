@@ -77,6 +77,12 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   }, [moveCount, playSfx, scoreDelta, onRoundStart]);
 
   const handleReset = () => {
+    // If resetting mid-game, explicitly terminate and complete the round
+    if (roundStartedRef.current && status === "playing") {
+      const playTimeMs = roundStartMsRef.current ? Date.now() - roundStartMsRef.current : 0;
+      onGameEnd(score, getMaxTile(tiles), playTimeMs, false);
+    }
+    
     recordedRef.current = false;
     roundStartedRef.current = false;
     roundStartMsRef.current = null;
