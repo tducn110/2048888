@@ -104,6 +104,19 @@ function pauseBgm() {
   bgmElement.pause();
 }
 
+// Tracks parent-imposed mute (Wink bridge) — does NOT change user prefs
+let parentMuted = false;
+
+function applyParentMute(muted: boolean) {
+  parentMuted = muted;
+  if (bgmElement) {
+    bgmElement.volume = (muted || !bgmDesiredPlaying) ? 0 : MUSIC_VOLUME;
+  }
+  if (sfxGain) {
+    sfxGain.gain.value = muted ? 0 : 1;
+  }
+}
+
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   const musicEnabledRef = useRef(musicEnabled);
   const sfxEnabledRef = useRef(sfxEnabled);
@@ -117,8 +130,9 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     sfxEnabledRef.current = sfxEnabled;
   }, [sfxEnabled]);
 
-  // Sync mute state to gain nodes
+  // Sync user music preference to gain nodes (only when parent hasn't muted)
   useEffect(() => {
+    if (parentMuted) return; // parent mute takes priority for output, but don't change prefs
     if (bgmElement) {
       bgmElement.volume = musicEnabled ? MUSIC_VOLUME : 0;
     }
@@ -298,5 +312,9 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     };
   }, []);
 
-  return { playSfx, audioStatus, unlockAudio };
+  const setParentMuted = useCallback((muted: boolean) => {
+    applyParentMute(muted);
+  }, []);
+
+  return { playSfx, audioStatus, unlockAudio, setParentMuted };
 }

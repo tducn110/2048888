@@ -48,3 +48,6 @@ out/
 .vercel
 *.md
 .env*
+
+# Wink deployment evidence (local only)
+artifacts/

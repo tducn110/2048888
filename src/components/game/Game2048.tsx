@@ -12,7 +12,7 @@ import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
 
 interface Game2048Props {
   bestScore: number;
-  onGameEnd: (score: number, maxTile: number) => void;
+  onGameEnd: (score: number, maxTile: number, playTimeMs: number, doubled: boolean) => void;
   bgId: number;
   setBgId: (id: number) => void;
   onSettings: () => void;
@@ -22,9 +22,10 @@ interface Game2048Props {
   unlockAudio: () => void;
   inputEnabled?: boolean;
   onScoreDoubled?: (newScore: number) => void;
+  onRoundStart?: () => void;
 }
 
-export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, onScoreDoubled }: Game2048Props) {
+export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, onScoreDoubled, onRoundStart }: Game2048Props) {
   const { tiles, score, scoreDelta, status, moveCount, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
 
@@ -32,16 +33,22 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const recordedRef = useRef(false);
   const previousMoveCountRef = useRef(0);
   const previousStatusRef = useRef(status);
+  // Track play time for Wink score submission
+  const roundStartMsRef = useRef<number | null>(null);
+  const roundStartedRef = useRef(false);
   
   const [showContinue, setShowContinue] = useState(true);
   const [isScoreDoubled, setIsScoreDoubled] = useState(false);
+  const [pendingDoubleScore, setPendingDoubleScore] = useState(0);
 
   useEffect(() => {
     if (status === "lost" && !showContinue && !recordedRef.current) {
       recordedRef.current = true;
-      onGameEnd(score, getMaxTile(tiles));
+      const playTimeMs = roundStartMsRef.current ? Date.now() - roundStartMsRef.current : 0;
+      const finalScore = isScoreDoubled ? pendingDoubleScore : score;
+      onGameEnd(finalScore, getMaxTile(tiles), playTimeMs, isScoreDoubled);
     }
-  }, [status, showContinue, score, tiles, onGameEnd]);
+  }, [status, showContinue, score, pendingDoubleScore, isScoreDoubled, tiles, onGameEnd]);
 
   useEffect(() => {
     if (status !== previousStatusRef.current) {
@@ -51,8 +58,15 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   }, [playSfx, status]);
 
   useEffect(() => {
-    if (previousMoveCountRef.current === 0) {
+    if (previousMoveCountRef.current === 0 && moveCount === 1) {
+      // First actual move — start the Wink round (covers keyboard input path)
+      if (!roundStartedRef.current) {
+        roundStartedRef.current = true;
+        roundStartMsRef.current = Date.now();
+        onRoundStart?.();
+      }
       previousMoveCountRef.current = moveCount;
+      playSfx(scoreDelta > 0 ? "merge" : "move");
       return;
     }
 
@@ -60,12 +74,15 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       playSfx(scoreDelta > 0 ? "merge" : "move");
     }
     previousMoveCountRef.current = moveCount;
-  }, [moveCount, playSfx, scoreDelta]);
+  }, [moveCount, playSfx, scoreDelta, onRoundStart]);
 
   const handleReset = () => {
     recordedRef.current = false;
+    roundStartedRef.current = false;
+    roundStartMsRef.current = null;
     setShowContinue(true);
     setIsScoreDoubled(false);
+    setPendingDoubleScore(0);
     setBgId(getNextGameThemeId(bgId));
     reset();
   };
@@ -76,7 +93,15 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   };
 
   const handleSwipe = (dir: Direction) => {
-    if (inputEnabled) move(dir);
+    if (inputEnabled) {
+      // Fire onRoundStart on first move
+      if (!roundStartedRef.current) {
+        roundStartedRef.current = true;
+        roundStartMsRef.current = Date.now();
+        onRoundStart?.();
+      }
+      move(dir);
+    }
   };
 
   return (
@@ -277,9 +302,11 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
                 {!isScoreDoubled && (
                   <Button
                     onClick={() => { 
+                      const doubled = score * 2;
+                      setPendingDoubleScore(doubled);
                       setIsScoreDoubled(true);
                       doubleScore();
-                      onScoreDoubled?.(score * 2);
+                      onScoreDoubled?.(doubled);
                     }}
                     size="md"
                     variant="primary"

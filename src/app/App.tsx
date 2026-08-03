@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Game2048 from "@/components/game/Game2048";
 import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
 import { useLocalStats } from "@/hooks/useLocalStats";
 import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
+import { useWinkIntegration } from "@/hooks/useWinkIntegration";
 
 type Screen = "dashboard" | "game" | "settings";
 
@@ -14,8 +15,24 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
-  const { playSfx, audioStatus, unlockAudio } = useGameAudio(musicEnabled, sfxEnabled);
+  const { playSfx, audioStatus, unlockAudio, setParentMuted } = useGameAudio(musicEnabled, sfxEnabled);
   const keepGameMounted = screen === "game" || screen === "settings";
+
+  // Wink bridge integration
+  const {
+    winkPaused,
+    winkMuted,
+    onRoundStart,
+    onGameEnd: winkOnGameEnd,
+  } = useWinkIntegration();
+
+  // Apply parent mute to audio engine without touching user prefs
+  useEffect(() => {
+    setParentMuted(winkMuted);
+  }, [winkMuted, setParentMuted]);
+
+  // inputEnabled: game requires audio to be ready AND not wink-paused AND on the game screen
+  const inputEnabled = screen === "game" && audioStatus === "ready" && !winkPaused;
 
   return (
     <div className="app-shell" style={{
@@ -66,12 +83,14 @@ export default function App() {
             <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
               <Game2048 
                 bestScore={stats.bestScore} 
-                onGameEnd={(score, maxTile) => {
+                onGameEnd={(score, maxTile, playTimeMs, doubled) => {
                   recordGame(score, maxTile);
+                  winkOnGameEnd(score, playTimeMs, doubled);
                 }} 
                 onScoreDoubled={(newScore) => {
                   updateLastGameScore(newScore);
                 }} 
+                onRoundStart={onRoundStart}
                 bgId={bgId} 
                 setBgId={setBgId} 
                 onSettings={() => setScreen("settings")}
@@ -79,7 +98,7 @@ export default function App() {
                 playSfx={playSfx}
                 audioStatus={audioStatus}
                 unlockAudio={unlockAudio}
-                inputEnabled={screen === "game" && audioStatus === "ready"}
+                inputEnabled={inputEnabled}
               />
             </div>
 
