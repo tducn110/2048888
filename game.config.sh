@@ -12,7 +12,7 @@
 # ----------------------------- PER-GAME INPUT --------------------------------
 # Slug: lowercase letters, digits, single hyphens. Becomes the subdomain, the
 # service name, and the registry path.
-GAME_SLUG="bo-lac-dau-phong-2048"
+GAME_SLUG="bo-lac-2048"
 
 # Display metadata (not used by the runtime contract).
 GAME_TITLE="Bộ Lạc Đậu Phộng 2048"
@@ -22,11 +22,11 @@ GAME_DESCRIPTION="Bộ Lạc Đậu Phộng 2048 — Winkgames mini-game"
 # id of the environment below — the two environments have different ids. On dev
 # it is the UUID the developer generated before building; on prod it is the one
 # the CMS generated when the row was created, so that row has to exist first.
-GAME_ID="27d74846-b8ca-44b1-87fe-a909d8b9eef9"
+GAME_ID="b85fd50c-b3eb-4f4a-93eb-3101994e88e9"
 
 # "dev" or "prod". Promoting to prod additionally requires the platform-owner
 # approval described in game-template/docs/PRODUCTION_READINESS.md.
-ENVIRONMENT="dev"
+ENVIRONMENT="prod"
 # ---------------------------- /PER-GAME INPUT --------------------------------
 
 
