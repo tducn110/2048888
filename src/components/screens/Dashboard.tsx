@@ -1,7 +1,7 @@
 import { Trophy } from "lucide-react";
 import type { LocalStats } from "@/types";
 import { getTileConfig } from "@/constants/tileConfig";
-import { BADGE_COLORS, buildLeaderboardModel, getRank, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
+import { BADGE_COLORS, buildLeaderboardModel, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
 
 interface DashboardProps {
@@ -67,9 +67,15 @@ export default function Dashboard({ username, bestScore, stats, onPlay }: Dashbo
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, overflowY: "auto", paddingRight: 4 }}>
-          {topEntries.map((entry) => (
-            <RankingRow key={`${entry.name}-${entry.rank}`} entry={entry} highlight={entry.isLocal} />
-          ))}
+          {topEntries.length > 0 ? (
+            topEntries.map((entry) => (
+              <RankingRow key={`${entry.name}-${entry.rank}`} entry={entry} highlight={entry.isLocal} />
+            ))
+          ) : (
+            <div style={{ padding: "18px 12px", textAlign: "center", color: "var(--pencil-gray)", fontSize: 13, fontWeight: 700 }}>
+              Chưa có thành tích. Hãy chơi để thiết lập kỷ lục đầu tiên.
+            </div>
+          )}
         </div>
       </section>
 
@@ -91,7 +97,7 @@ export default function Dashboard({ username, bestScore, stats, onPlay }: Dashbo
           <div style={{ fontSize: 12, fontWeight: 800, color: "var(--orange-cta-edge)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Bảng xếp hạng của bạn
           </div>
-          <RankingRow entry={playerRow} highlight label={playerInTopTen ? "Đang ở top 10" : "Hạng của bạn"} />
+          <RankingRow entry={playerRow} highlight />
         </section>
       )}
 
@@ -106,11 +112,9 @@ export default function Dashboard({ username, bestScore, stats, onPlay }: Dashbo
 function RankingRow({
   entry,
   highlight = false,
-  label,
 }: {
   entry: RankedLeaderboardEntry;
   highlight?: boolean;
-  label?: string;
 }) {
   const isTopThree = entry.rank != null && entry.rank <= 3;
   const medal = isTopThree ? BADGE_COLORS[entry.rank! - 1] : null;
