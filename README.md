@@ -28,7 +28,7 @@ metadata; access token và session authority luôn nằm trong bridge closure.
 Bridge contract hiện tại:
 
 - Protocol version: `1`
-- Bridge version: `9.0.0`
+- Bridge version: `9.0.1`
 - Allowed parent: `https://winkgames.papastudio.net`
 
 Không commit secret, session token hoặc harness credential vào repository.

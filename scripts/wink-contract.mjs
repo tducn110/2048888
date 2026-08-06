@@ -6,11 +6,11 @@
  * artifact is certified by version, protocol, byte length, and checksum.
  */
 
-export const BRIDGE_VERSION = '9.0.0';
+export const BRIDGE_VERSION = '9.0.1';
 export const PROTOCOL_VERSION = 1;
 export const BRIDGE_SHA256 =
-  'afe2a789466c3d68f4eec7d8cf2e718f45a29a19a5d8b9eb8c4cec10b18f31eb';
-export const BRIDGE_BYTES = 35_128;
+  '2c116572babd9d850f19a91ff68669395eb3c8cd268c34f85be3d13d5625e29c';
+export const BRIDGE_BYTES = 35_490;
 
 /**
  * Provenance of the certified artifact in the Wink repository. This records
@@ -20,7 +20,7 @@ export const BRIDGE_BYTES = 35_128;
  */
 export const BRIDGE_SOURCE = Object.freeze({
   repository: 'wink',
-  commit: 'efc50ed4a27cb55f351c257350e1993d385e4a3f',
+  commit: 'fa76cdb800377579bb3459164afb92f0bbace379',
   artifact: 'game-template/wink-bridge.js',
   manifest: 'game-template/wink-bridge.manifest.json',
 });
