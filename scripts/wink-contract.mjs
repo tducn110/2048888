@@ -57,7 +57,10 @@ export const ENVIRONMENT_CONTRACT = Object.freeze({
   // production API base, and promoting a game to production additionally needs
   // the platform-owner approval described in docs/PRODUCTION_READINESS.md.
   prod: Object.freeze({
-    parentOrigins: Object.freeze(['https://winkgames.papastudio.net']),
+    parentOrigins: Object.freeze([
+      'https://winkgames.papastudio.net',
+      'http://localhost:3000',
+    ]),
     apiBase: 'https://api-winkgames.papastudio.net/api/v1',
     domainPrefix: '',
     stackName: 'papastudio-winkgames-games',
