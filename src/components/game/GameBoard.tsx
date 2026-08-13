@@ -79,10 +79,10 @@ export default function GameBoard({ tiles, onSwipe, background }: GameBoardProps
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const board = containerRef.current;
-    if (!board) return;
-
     const handleTouchStart = (e: TouchEvent) => {
+      if (e.target instanceof Element && e.target.closest('button, [role="button"], a')) {
+        return;
+      }
       const t = e.touches[0];
       touchStart.current = { x: t.clientX, y: t.clientY };
     };
@@ -108,17 +108,19 @@ export default function GameBoard({ tiles, onSwipe, background }: GameBoardProps
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
+      if (touchStart.current && e.cancelable) {
+        e.preventDefault();
+      }
     };
 
-    board.addEventListener("touchstart", handleTouchStart, { passive: true });
-    board.addEventListener("touchend", handleTouchEnd, { passive: true });
-    board.addEventListener("touchmove", handleTouchMove, { passive: false });
+    document.addEventListener("touchstart", handleTouchStart, { passive: true });
+    document.addEventListener("touchend", handleTouchEnd, { passive: true });
+    document.addEventListener("touchmove", handleTouchMove, { passive: false });
 
     return () => {
-      board.removeEventListener("touchstart", handleTouchStart);
-      board.removeEventListener("touchend", handleTouchEnd);
-      board.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchstart", handleTouchStart);
+      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("touchmove", handleTouchMove);
     };
   }, []);
 
