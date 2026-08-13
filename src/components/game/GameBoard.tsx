@@ -80,6 +80,9 @@ export default function GameBoard({ tiles, onSwipe, background }: GameBoardProps
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        return;
+      }
       if (e.target instanceof Element && e.target.closest('button, [role="button"], a')) {
         return;
       }
