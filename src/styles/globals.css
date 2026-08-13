@@ -44,6 +44,9 @@ html {
   height: 100%;
   overflow: hidden;
   scroll-behavior: smooth;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 body {
   height: 100%;

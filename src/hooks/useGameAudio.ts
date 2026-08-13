@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const MUSIC_SRC = "/assets/audio/music.mp3";
-const MUSIC_VOLUME = 0.05; // Background < SFX
+const MUSIC_VOLUME = 0.015; // Keep BGM below gameplay SFX, especially on mobile speakers
 
 const SFX_SOURCES = {
   move: { ogg: "/assets/audio/click3.ogg", mp3: "/assets/audio/click3.mp3" },
@@ -14,11 +14,11 @@ const SFX_SOURCES = {
 export type GameSfx = keyof typeof SFX_SOURCES;
 
 const SFX_VOLUMES: Record<GameSfx, number> = {
-  move: 0.6,
-  merge: 0.8,
-  win: 0.9,
-  lose: 0.9,
-  tap: 0.7,
+  move: 1.0,
+  merge: 1.0,
+  win: 1.0,
+  lose: 1.0,
+  tap: 1.0,
 };
 
 const BUTTON_SFX_SELECTOR = [
