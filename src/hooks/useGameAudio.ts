@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const MUSIC_SRC = "/assets/audio/music.mp3";
-const MUSIC_VOLUME = 0.035; // Set desired BGM volume here
+const MUSIC_VOLUME = 0.15; // Set desired BGM volume here
 
 const SFX_SOURCES = {
   move: { ogg: "/assets/audio/click3.ogg", mp3: "/assets/audio/click3.mp3" },
