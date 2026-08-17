@@ -9,8 +9,8 @@
 export const BRIDGE_VERSION = '9.0.1';
 export const PROTOCOL_VERSION = 1;
 export const BRIDGE_SHA256 =
-  '2c116572babd9d850f19a91ff68669395eb3c8cd268c34f85be3d13d5625e29c';
-export const BRIDGE_BYTES = 35_490;
+  '089b2d6c2261a7b285fa8acf5ff599e6d2aba9c1366f9def4ae1b1f9fefcfbda';
+export const BRIDGE_BYTES = 35_718;
 
 /**
  * Provenance of the certified artifact in the Wink repository. This records
