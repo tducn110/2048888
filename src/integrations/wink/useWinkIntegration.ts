@@ -12,7 +12,7 @@
  * for local development. It does NOT certify the iframe/security contract.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createWinkGameClient,
   getInstalledWinkBridge,
@@ -193,31 +193,28 @@ function readBuildFlag(): boolean {
   });
 }
 
+type WinkConnectionSnapshot = Readonly<{
+  client: WinkGameClient | null;
+  state: RedactedWinkState;
+  error: WinkIntegrationError | null;
+}>;
+
+function initializeConnection(offline: boolean): WinkConnectionSnapshot {
+  if (offline) {
+    return {
+      client: null,
+      state: OFFLINE_STATE,
+      error: null,
+    };
+  }
+  return initialConnection();
+}
+
 export function useWinkIntegration(): WinkIntegration {
   const offline = readBuildFlag();
-  const connectionRef = useRef<{
-    initialized: boolean;
-    client: WinkGameClient | null;
-    state: RedactedWinkState;
-    error: WinkIntegrationError | null;
-  }>({
-    initialized: false,
-    client: null,
-    state: OFFLINE_STATE,
-    error: null,
-  });
-
-  if (!connectionRef.current.initialized) {
-    connectionRef.current.initialized = true;
-    if (!offline) {
-      const connection = initialConnection();
-      connectionRef.current.client = connection.client;
-      connectionRef.current.state = connection.state;
-      connectionRef.current.error = connection.error;
-    }
-  }
-
-  const connection = connectionRef.current;
+  const [connection] = useState<WinkConnectionSnapshot>(() =>
+    initializeConnection(offline),
+  );
   const [state, setState] = useState<RedactedWinkState>(connection.state);
   const [error, setError] = useState<WinkIntegrationError | null>(
     connection.error,
@@ -233,6 +230,7 @@ export function useWinkIntegration(): WinkIntegration {
   >([]);
 
   useEffect(() => {
+    let active = true;
     const client = connection.client;
     if (!client) return;
 
@@ -273,12 +271,16 @@ export function useWinkIntegration(): WinkIntegration {
       );
     } catch (value) {
       const nextError = safeError(value, "MESSAGE_REJECTED");
-      setError(nextError);
-      setState((current) => stateWithError(current, nextError));
       cleanups.splice(0).forEach((cleanup) => cleanup());
+      queueMicrotask(() => {
+        if (!active) return;
+        setError(nextError);
+        setState((current) => stateWithError(current, nextError));
+      });
     }
 
     return () => {
+      active = false;
       cleanups.splice(0).forEach((cleanup) => {
         try {
           cleanup();
