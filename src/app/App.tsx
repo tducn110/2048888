@@ -23,7 +23,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
-  const { playSfx, audioStatus, unlockAudio, setParentMuted } = useGameAudio(musicEnabled, sfxEnabled);
+  const { playSfx, audioStatus, unlockAudio, setParentMuted, startBgmFromUserGesture } = useGameAudio(musicEnabled, sfxEnabled);
   const keepGameMounted = screen === "game" || screen === "settings";
 
   // Wink bridge integration — full typed WinkIntegration
@@ -193,7 +193,14 @@ export default function App() {
               <Settings
                 musicEnabled={musicEnabled}
                 sfxEnabled={sfxEnabled}
-                onMusicChange={setMusicEnabled}
+                onMusicChange={(enabled) => {
+                  setMusicEnabled(enabled);
+                  if (enabled) {
+                    // Play attempt happens inside this click gesture —
+                    // never relies on a ref from the next render.
+                    startBgmFromUserGesture();
+                  }
+                }}
                 onSfxChange={setSfxEnabled}
                 onBack={() => setScreen("game")}
               />
