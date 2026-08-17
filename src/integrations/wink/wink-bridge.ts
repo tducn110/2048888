@@ -125,13 +125,6 @@ export interface WinkBridgeApi {
   help(): WinkBridgeDiagnostics;
 }
 
-declare global {
-  interface Window {
-    WinkBridge?: WinkBridgeApi;
-    WinkBridgeVersion?: string;
-  }
-}
-
 const EMPTY_CAPABILITIES: WinkBridgeCapabilities = Object.freeze({
   getLeaderboard: false,
   submitScore: false,
@@ -143,7 +136,11 @@ export function getWinkBridge(): WinkBridgeApi | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  return window.WinkBridge ?? null;
+  // This legacy convenience wrapper is intentionally not part of the global
+  // Window declaration. The canonical adapter in client.ts owns that contract.
+  return (
+    window as unknown as { WinkBridge?: WinkBridgeApi }
+  ).WinkBridge ?? null;
 }
 
 export const WinkBridge: WinkBridgeApi | null = getWinkBridge();

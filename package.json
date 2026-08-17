@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "optimize:images": "python3 scripts/optimize_images.py public/assets public/assets-optimized-webp --quality 82",
     "prebuild": "npm run verify:wink-bridge",
     "sync:wink-bridge": "node scripts/sync-wink-bridge.mjs",
     "verify:wink-bridge": "node scripts/verify-wink-bridge.mjs",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "4.1.12",
+    "@types/node": "^22.20.1",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "4.7.0",
