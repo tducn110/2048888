@@ -9,17 +9,17 @@ import {
 } from "@/utils/gameLogic";
 import type { BoardState, Direction, GameStatus } from "@/types";
 
-interface State {
+export interface State {
   current: BoardState;
 }
 
-type Action =
+export type Action =
   | { type: "MOVE"; direction: Direction }
   | { type: "RESET" }
   | { type: "REVIVE" }
   | { type: "DOUBLE_SCORE" };
 
-function makeFreshBoard(): BoardState {
+export function makeFreshBoard(): BoardState {
   return {
     tiles: createInitialTiles(),
     score: 0,
@@ -30,7 +30,7 @@ function makeFreshBoard(): BoardState {
   };
 }
 
-function reducer(state: State, action: Action): State {
+export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "MOVE": {
       const { current } = state;

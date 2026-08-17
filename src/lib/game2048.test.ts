@@ -6,7 +6,7 @@
  * Run with: npx vitest run
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   moveBoard,
   canMove,
@@ -280,5 +280,173 @@ describe("tilesToGrid / gridToTiles roundtrip", () => {
     const origMatrix = toMatrix(original);
     const restoredMatrix = toMatrix(restored);
     expect(restoredMatrix).toEqual(origMatrix);
+  });
+});
+
+// ── Milestone 2048 — latching behavior via reducer ──────────────────────────
+
+import { reducer, makeFreshBoard } from "@/hooks/use2048Game";
+import type { State } from "@/hooks/use2048Game";
+
+describe("milestone 2048 — latching behavior via reducer", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("fresh state hasReached2048=false", () => {
+    const state: State = { current: makeFreshBoard() };
+    expect(state.current.hasReached2048).toBe(false);
+  });
+
+  it("first move reaching >=2048 sets hasReached2048=true, status=playing", () => {
+    // Controlled board: left merge of two 1024s creates 2048.
+    // After merge the board has 15 tiles; spawned tile goes to (1,3) — board
+    // still has legal moves (4s at (2,0)&(3,0) can merge on a later move).
+    const initial: State = {
+      current: {
+        ...makeFreshBoard(),
+        tiles: fromGrid([
+          [1024, 1024, 4, 8],
+          [2,    4,    8, 0],
+          [4,    2,    4, 8],
+          [8,    4,    2, 4],
+        ]),
+        status: "playing",
+      },
+    };
+
+    // Math.random: first call → position index 0 of empty cells, second → value 2
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const next = reducer(initial, { type: "MOVE", direction: "left" });
+
+    expect(next.current.hasReached2048).toBe(true);
+    expect(next.current.status).toBe("playing");
+  });
+
+  it("later moves preserve latched hasReached2048=true", () => {
+    // Board already contains a 2048 tile from a prior move.
+    const initial: State = {
+      current: {
+        ...makeFreshBoard(),
+        tiles: fromGrid([
+          [2048, 4, 8, 2],
+          [4,    2, 4, 8],
+          [8,    4, 2, 4],
+          [2,    8, 4, 2],
+        ]),
+        hasReached2048: true,
+        status: "playing",
+      },
+    };
+
+    // Spawned tile goes to (0,3) — no merge possible, but status stays playing
+    // because other legal moves exist on the board.
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const next = reducer(initial, { type: "MOVE", direction: "left" });
+
+    expect(next.current.hasReached2048).toBe(true);
+  });
+
+  it("MOVE that first reaches >=2048 AND leaves no legal moves → hasReached2048=true, status=lost", () => {
+    // Board where left move merges two 1024s into 2048, and the only empty
+    // cell after merge is filled by the spawned tile — resulting in a full
+    // board with no adjacent equal tiles (no legal moves).
+    //
+    // Pre-move layout (16 tiles, full board):
+    //   [1024, 1024, 2, 8]    ← left merge → [2048, 2, 8, null]
+    //   [4,    8,    2, 4]    → unchanged
+    //   [8,    2,    4, 8]    → unchanged
+    //   [2,    4,    8, 2]    → unchanged
+    //
+    // After merge: one empty cell at (0,3).
+    // Mock Math.random → 0: picks first empty cell (0,3), spawns value 2.
+    //
+    // Resulting board (16 tiles, full):
+    //   [2048, 2, 8, 2]    no adjacent equals
+    //   [4,    8, 2, 4]    no adjacent equals
+    //   [8,    2, 4, 8]    no adjacent equals
+    //   [2,    4, 8, 2]    no adjacent equals
+    //
+    // canMove = false → status = "lost"
+    // hasReached2048 = true (latched)
+    const initial: State = {
+      current: {
+        ...makeFreshBoard(),
+        tiles: fromGrid([
+          [1024, 1024, 2, 8],
+          [4,    8,    2, 4],
+          [8,    2,    4, 8],
+          [2,    4,    8, 2],
+        ]),
+        status: "playing",
+      },
+    };
+
+    vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const next = reducer(initial, { type: "MOVE", direction: "left" });
+
+    expect(next.current.hasReached2048).toBe(true);
+    expect(next.current.status).toBe("lost");
+  });
+
+  it("lost → REVIVE preserves hasReached2048=true", () => {
+    const initial: State = {
+      current: {
+        ...makeFreshBoard(),
+        tiles: fromGrid([
+          [2048, 4, 8, 2],
+          [4,    2, 4, 8],
+          [8,    4, 2, 4],
+          [2,    8, 4, 2],
+        ]),
+        hasReached2048: true,
+        status: "lost",
+      },
+    };
+
+    const next = reducer(initial, { type: "REVIVE" });
+
+    expect(next.current.hasReached2048).toBe(true);
+    expect(next.current.status).toBe("playing");
+  });
+
+  it("RESET returns hasReached2048=false", () => {
+    const initial: State = {
+      current: {
+        ...makeFreshBoard(),
+        hasReached2048: true,
+        status: "playing",
+      },
+    };
+
+    const next = reducer(initial, { type: "RESET" });
+
+    expect(next.current.hasReached2048).toBe(false);
+    expect(next.current.status).toBe("playing");
+  });
+
+  it("MOVE while already lost returns unchanged state", () => {
+    const initial: State = {
+      current: {
+        ...makeFreshBoard(),
+        tiles: fromGrid([
+          [2, 4, 2, 4],
+          [4, 2, 4, 2],
+          [2, 4, 2, 4],
+          [4, 2, 4, 2],
+        ]),
+        hasReached2048: true,
+        status: "lost",
+      },
+    };
+
+    const next = reducer(initial, { type: "MOVE", direction: "left" });
+
+    expect(next).toBe(initial);
+    expect(next.current.status).toBe("lost");
+    expect(next.current.hasReached2048).toBe(true);
   });
 });

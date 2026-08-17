@@ -200,9 +200,7 @@ export default function App() {
                 onMusicChange={(enabled) => {
                   setMusicEnabled(enabled);
                   if (enabled) {
-                    // Play attempt happens inside this click gesture —
-                    // never relies on a ref from the next render.
-                    startBgmFromUserGesture();
+                    startBgmFromUserGesture(enabled);
                   }
                 }}
                 onSfxChange={setSfxEnabled}

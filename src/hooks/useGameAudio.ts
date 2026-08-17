@@ -133,8 +133,16 @@ function syncGainState(musicEnabled: boolean, sfxEnabled: boolean, parentMuted: 
   }
 }
 
+export function isBgmPlaybackEligible(
+  musicEnabled: boolean,
+  hostPaused: boolean,
+  documentHidden: boolean,
+): boolean {
+  return musicEnabled && !hostPaused && !documentHidden;
+}
+
 function canStartBgm(musicEnabled: boolean) {
-  return musicEnabled && !globalHostPaused && !document.hidden;
+  return isBgmPlaybackEligible(musicEnabled, globalHostPaused, document.hidden);
 }
 
 function startBgm(musicEnabled: boolean) {
@@ -417,16 +425,18 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     }
   }, []);
 
-  // Explicit user-gesture path for a Music OFF -> ON toggle. The caller has
-  // already established "enabled" as the source of truth for this interaction,
-  // so we must not gate on refs that belong to the next render.
-  const startBgmFromUserGesture = useCallback(() => {
-    if (!audioUnlocked) return;
-    if (canStartBgm(musicEnabledRef.current)) {
+  // Explicit user-gesture path for a Music OFF → ON toggle. The caller passes
+  // the semantic "enabled" value directly so this callback never reads a stale ref.
+  const startBgmFromUserGesture = useCallback(
+    (enabled: boolean) => {
+      if (!audioUnlocked) return;
+      if (!isBgmPlaybackEligible(enabled, globalHostPaused, document.hidden)) return;
+
       setupBgm();
-      startBgm(musicEnabledRef.current);
-    }
-  }, []);
+      startBgm(enabled);
+    },
+    [],
+  );
 
   return { playSfx, audioStatus, unlockAudio, setParentMuted, setHostPaused, startBgmFromUserGesture };
 }
