@@ -23,7 +23,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
-  const { playSfx, audioStatus, unlockAudio, setParentMuted, startBgmFromUserGesture } = useGameAudio(musicEnabled, sfxEnabled);
+  const { playSfx, audioStatus, unlockAudio, setParentMuted, setHostPaused, startBgmFromUserGesture } = useGameAudio(musicEnabled, sfxEnabled);
   const keepGameMounted = screen === "game" || screen === "settings";
 
   // Wink bridge integration — full typed WinkIntegration
@@ -33,6 +33,10 @@ export default function App() {
   useEffect(() => {
     setParentMuted(wink.parentMuted);
   }, [wink.parentMuted, setParentMuted]);
+
+  useEffect(() => {
+    setHostPaused(wink.hostPaused);
+  }, [wink.hostPaused, setHostPaused]);
 
   // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
   const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;

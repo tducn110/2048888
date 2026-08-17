@@ -3,6 +3,7 @@ import {
   addRandomTile,
   canMove,
   createInitialTiles,
+  hasWon,
   moveBoard,
   removeReviveTiles,
 } from "@/utils/gameLogic";
@@ -24,6 +25,7 @@ function makeFreshBoard(): BoardState {
     score: 0,
     scoreDelta: 0,
     status: "playing",
+    hasReached2048: false,
     moveCount: 0,
   };
 }
@@ -43,8 +45,8 @@ function reducer(state: State, action: Action): State {
       const withSpawn = addRandomTile(moved);
       const newScore = current.score + scoreDelta;
 
-      let status: GameStatus = "playing";
-      if (!canMove(withSpawn)) status = "lost";
+      const reached2048 = current.hasReached2048 || hasWon(withSpawn);
+      const status: GameStatus = canMove(withSpawn) ? "playing" : "lost";
 
       return {
         current: {
@@ -52,6 +54,7 @@ function reducer(state: State, action: Action): State {
           score: newScore,
           scoreDelta,
           status,
+          hasReached2048: reached2048,
           moveCount: current.moveCount + 1,
         },
       };
@@ -133,6 +136,7 @@ export function use2048Game(inputEnabled = true) {
     score: state.current.score,
     scoreDelta: state.current.scoreDelta,
     status: state.current.status,
+    hasReached2048: state.current.hasReached2048,
     moveCount: state.current.moveCount,
     move,
     reset,
