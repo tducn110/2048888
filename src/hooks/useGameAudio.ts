@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const MUSIC_SRC = "/assets/audio/music.mp3";
-const MUSIC_VOLUME = 0.15; // Set desired BGM volume here
+
+// Volume preset: BGM stays perceptually below gameplay SFX.
+// UI SFX +3-6 dB / gameplay SFX +6-9 dB / important SFX +8-10 dB over BGM.
+// Never default to 1.0 — keep master headroom and duck BGM instead.
+const AUDIO_VOLUME = {
+  bgm: 0.18,
+  tap: 0.35,
+  move: 0.40,
+  merge: 0.50,
+  lose: 0.50,
+  win: 0.55,
+  master: 0.85,
+} as const;
 
 const SFX_SOURCES = {
   move: { ogg: "/assets/audio/click3.ogg", mp3: "/assets/audio/click3.mp3" },
@@ -14,11 +26,11 @@ const SFX_SOURCES = {
 export type GameSfx = keyof typeof SFX_SOURCES;
 
 const SFX_VOLUMES: Record<GameSfx, number> = {
-  move: 1.0,
-  merge: 1.0,
-  win: 1.0,
-  lose: 1.0,
-  tap: 1.0,
+  move: AUDIO_VOLUME.move,
+  merge: AUDIO_VOLUME.merge,
+  win: AUDIO_VOLUME.win,
+  lose: AUDIO_VOLUME.lose,
+  tap: AUDIO_VOLUME.tap,
 };
 
 const BUTTON_SFX_SELECTOR = [
@@ -42,16 +54,21 @@ function shouldPlayButtonSfx(target: EventTarget | null) {
   return true;
 }
 
-// Global Web Audio API Context
+// Global Web Audio API Context.
+// Every playable sound routes through the Web Audio graph — the OS/hardware
+// volume layer is left entirely to the browser/platform.
 let audioCtx: AudioContext | null = null;
-let sfxGain: GainNode | null = null;
-let bgmGain: GainNode | null = null;
+let sfxMuteGain: GainNode | null = null;
+let bgmMuteGain: GainNode | null = null;
+let masterGain: GainNode | null = null;
 let bgmElement: HTMLAudioElement | null = null;
 let bgmSource: MediaElementAudioSourceNode | null = null;
 let bgmLocalGain: GainNode | null = null;
 let bgmStarted = false;
 let bgmPlayPromise: Promise<void> | null = null;
 let audioUnlocked = false;
+let bgmPendingStart = false;
+let globalHostPaused = false;
 
 const sfxBuffers: Partial<Record<GameSfx, AudioBuffer>> = {};
 
@@ -62,7 +79,12 @@ function pickSfxSource(source: (typeof SFX_SOURCES)[GameSfx]) {
 }
 
 function setupBgm() {
-  if (bgmElement) return;
+  if (bgmElement) {
+    if (bgmElement.preload !== "auto") {
+      bgmElement.preload = "auto";
+    }
+    return;
+  }
 
   bgmElement = new Audio(MUSIC_SRC);
   bgmElement.loop = true;
@@ -70,33 +92,62 @@ function setupBgm() {
   bgmElement.setAttribute("playsinline", "true");
   
   if (audioCtx) {
-    if (!bgmGain) {
-      bgmGain = audioCtx.createGain();
-      bgmGain.connect(audioCtx.destination);
+    if (!bgmMuteGain) {
+      bgmMuteGain = audioCtx.createGain();
+      bgmMuteGain.connect(masterGain ?? audioCtx.destination);
     }
     
     // Web Audio API Architecture: Wrap HTML Audio and route through GainNodes
     bgmSource = audioCtx.createMediaElementSource(bgmElement);
     bgmLocalGain = audioCtx.createGain();
-    bgmLocalGain.gain.value = MUSIC_VOLUME; 
+    bgmLocalGain.gain.value = AUDIO_VOLUME.bgm; 
     
     bgmSource.connect(bgmLocalGain);
-    bgmLocalGain.connect(bgmGain);
+    bgmLocalGain.connect(bgmMuteGain);
   }
+}
+
+// Hold current automation then ramp to target — safe under rapid toggles/ducks.
+// cancelAndHoldAtTime keeps the exact instantaneous value of a running ramp
+// (fallback: cancel + resample from param.value).
+function holdAndRamp(param: AudioParam, target: number, at: number, duration: number) {
+  const p = param as AudioParam & { cancelAndHoldAtTime?: (time: number) => AudioParam };
+  if (typeof p.cancelAndHoldAtTime === "function") {
+    p.cancelAndHoldAtTime(at);
+  } else {
+    param.cancelScheduledValues(at);
+    param.setValueAtTime(param.value, at);
+  }
+  param.linearRampToValueAtTime(target, at + duration);
 }
 
 function syncGainState(musicEnabled: boolean, sfxEnabled: boolean, parentMuted: boolean) {
-  // Mute control: strictly by setting gain.value, not by pausing tracks
-  if (bgmGain) {
-    bgmGain.gain.value = (parentMuted || !musicEnabled) ? 0 : 1;
+  // Mute control: strictly by gain gates, not by pausing tracks.
+  // Ramp briefly so toggles never cause clicks/pops (no abrupt gain jumps).
+  const now = audioCtx?.currentTime ?? 0;
+  if (bgmMuteGain) {
+    holdAndRamp(bgmMuteGain.gain, parentMuted || globalHostPaused || !musicEnabled ? 0 : 1, now, 0.03);
   }
-  if (sfxGain) {
-    sfxGain.gain.value = (parentMuted || !sfxEnabled) ? 0 : 1;
+  if (sfxMuteGain) {
+    holdAndRamp(sfxMuteGain.gain, parentMuted || globalHostPaused || !sfxEnabled ? 0 : 1, now, 0.03);
   }
 }
 
-function startBgm() {
+export function isBgmPlaybackEligible(
+  musicEnabled: boolean,
+  hostPaused: boolean,
+  documentHidden: boolean,
+): boolean {
+  return musicEnabled && !hostPaused && !documentHidden;
+}
+
+function canStartBgm(musicEnabled: boolean) {
+  return isBgmPlaybackEligible(musicEnabled, globalHostPaused, document.hidden);
+}
+
+function startBgm(musicEnabled: boolean) {
   if (!bgmElement) return;
+  if (!canStartBgm(musicEnabled)) return;
   if (bgmStarted && !bgmElement.paused) return;
   if (bgmPlayPromise) return;
 
@@ -104,10 +155,18 @@ function startBgm() {
     .play()
     .then(() => {
       bgmStarted = true;
+      bgmPendingStart = false;
     })
     .catch((err) => {
-      console.warn("BGM play failed, deferred until interaction", err);
       bgmStarted = false;
+
+      if (err?.name === "NotAllowedError") {
+        // Autoplay policy blocked playback: keep pending until a real
+        // user interaction retries. Never fake a playing state.
+        bgmPendingStart = true;
+      } else {
+        console.warn("BGM play failed, deferred until interaction", err);
+      }
     })
     .finally(() => {
       bgmPlayPromise = null;
@@ -117,6 +176,16 @@ function startBgm() {
 // Tracks parent-imposed mute (Wink bridge) — does NOT change user prefs
 let globalParentMuted = false;
 
+// Duck BGM ~4 dB for important events so SFX stands out without high gain.
+// Uses holdAndRamp so consecutive merges never jump or fight automation.
+function duckBgm() {
+  if (!audioCtx || !bgmLocalGain) return;
+  const now = audioCtx.currentTime;
+
+  holdAndRamp(bgmLocalGain.gain, AUDIO_VOLUME.bgm * 0.6, now, 0.03);
+  holdAndRamp(bgmLocalGain.gain, AUDIO_VOLUME.bgm, now + 0.03, 0.22);
+}
+
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   const musicEnabledRef = useRef(musicEnabled);
   const sfxEnabledRef = useRef(sfxEnabled);
@@ -125,10 +194,15 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   useEffect(() => {
     musicEnabledRef.current = musicEnabled;
     syncGainState(musicEnabled, sfxEnabledRef.current, globalParentMuted);
-    
+
     if (musicEnabled && audioUnlocked) {
       setupBgm();
-      startBgm();
+      startBgm(musicEnabled);
+    }
+
+    if (!musicEnabled) {
+      // Music off: a pending start must not survive into a later gesture
+      bgmPendingStart = false;
     }
   }, [musicEnabled]);
 
@@ -140,11 +214,16 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   const playSfx = useCallback(
     (name: GameSfx) => {
       // Check parent and user preference dynamically
-      if (!sfxEnabledRef.current || globalParentMuted) return;
-      if (!audioCtx || !sfxGain) return;
+      if (!sfxEnabledRef.current || globalParentMuted || globalHostPaused) return;
+      if (!audioCtx || !sfxMuteGain) return;
 
       const buffer = sfxBuffers[name];
       if (!buffer) return;
+
+      // Duck BGM on important events (merge/win/lose) — not on tap/move
+      if (name === "merge" || name === "win" || name === "lose") {
+        duckBgm();
+      }
 
       // Resume context if suspended (common on iOS)
       if (audioCtx.state === "suspended") {
@@ -157,9 +236,9 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
       const localGain = audioCtx.createGain();
       localGain.gain.value = SFX_VOLUMES[name];
 
-      // IMPORTANT: Connect to master sfxGain
+      // IMPORTANT: Connect to the shared SFX mute gate -> masterGain
       source.connect(localGain);
-      localGain.connect(sfxGain);
+      localGain.connect(sfxMuteGain);
 
       source.start(0);
     },
@@ -181,12 +260,31 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     if (!audioCtx && AudioContextClass) {
       audioCtx = new AudioContextClass();
       
-      // Global Mixer Setup
-      sfxGain = audioCtx.createGain();
-      sfxGain.connect(audioCtx.destination);
-      
-      bgmGain = audioCtx.createGain();
-      bgmGain.connect(audioCtx.destination);
+      // Master chain: both buses -> masterGain -> compressor -> destination
+      // Prevents clipping when BGM + multiple SFX fire simultaneously
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = AUDIO_VOLUME.master;
+
+      const compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.value = -6;
+      compressor.knee.value = 6;
+      compressor.ratio.value = 4;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.15;
+
+      masterGain.connect(compressor);
+      compressor.connect(audioCtx.destination);
+
+      // Global Mixer Setup: SFX/BGM buses -> mute gates -> masterGain.
+      // Set initial mute state immediately (no ramp) so no audio can leak
+      // during the first 30ms if user/parent starts muted.
+      sfxMuteGain = audioCtx.createGain();
+      sfxMuteGain.connect(masterGain);
+      sfxMuteGain.gain.value = globalParentMuted || globalHostPaused || !sfxEnabledRef.current ? 0 : 1;
+
+      bgmMuteGain = audioCtx.createGain();
+      bgmMuteGain.connect(masterGain);
+      bgmMuteGain.gain.value = globalParentMuted || globalHostPaused || !musicEnabledRef.current ? 0 : 1;
     }
     
     setupBgm();
@@ -205,14 +303,10 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
       source.start(0);
     }
     
-    if (musicEnabledRef.current) {
-      startBgm();
-    } else {
-      // Start it anyway silently in background so we don't need to .play() later
-      startBgm();
-    }
-
     audioUnlocked = true;
+    if (canStartBgm(musicEnabledRef.current)) {
+      startBgm(musicEnabledRef.current);
+    }
 
     // 2. Async actions (Loading SFX buffers)
     const promises: Promise<void>[] = [];
@@ -240,6 +334,13 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   // Global button SFX listener
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
+      // Retry a pending BGM start inside this real user gesture,
+      // but only while music is still enabled.
+      if (bgmPendingStart && canStartBgm(musicEnabledRef.current) && audioUnlocked) {
+        setupBgm();
+        startBgm(musicEnabledRef.current);
+      }
+
       if (shouldPlayButtonSfx(event.target)) {
         playSfx("tap");
       }
@@ -247,6 +348,11 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
+
+      if (bgmPendingStart && canStartBgm(musicEnabledRef.current) && audioUnlocked) {
+        setupBgm();
+        startBgm(musicEnabledRef.current);
+      }
 
       if (shouldPlayButtonSfx(event.target)) {
         playSfx("tap");
@@ -274,12 +380,14 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
           audioCtx.suspend().catch(() => {});
         }
       } else {
-        if (audioCtx && audioCtx.state === "suspended") {
+        if (!globalHostPaused && audioCtx && audioCtx.state === "suspended") {
           audioCtx.resume().catch(() => {});
         }
-        // Always attempt to resume music if it was running, regardless of mute state 
-        // because it should be silently playing in background
-        startBgm();
+        // Resume/start BGM only while music is enabled — foregrounding
+        // must never initialize BGM for a music-off session.
+        if (!globalHostPaused && canStartBgm(musicEnabledRef.current)) {
+          startBgm(musicEnabledRef.current);
+        }
       }
     };
 
@@ -294,5 +402,41 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     syncGainState(musicEnabledRef.current, sfxEnabledRef.current, globalParentMuted);
   }, []);
 
-  return { playSfx, audioStatus, unlockAudio, setParentMuted };
+  const setHostPaused = useCallback((paused: boolean) => {
+    globalHostPaused = paused;
+    if (paused) {
+      bgmPendingStart = false;
+      if (bgmElement && !bgmElement.paused) {
+        bgmElement.pause();
+        bgmStarted = false;
+      }
+    }
+    syncGainState(musicEnabledRef.current, sfxEnabledRef.current, globalParentMuted);
+    if (!paused && audioUnlocked && canStartBgm(musicEnabledRef.current)) {
+      const resume = audioCtx?.state === "suspended" ? audioCtx.resume() : Promise.resolve();
+      resume
+        .catch(() => {})
+        .then(() => {
+          if (!globalHostPaused && canStartBgm(musicEnabledRef.current)) {
+            setupBgm();
+            startBgm(musicEnabledRef.current);
+          }
+        });
+    }
+  }, []);
+
+  // Explicit user-gesture path for a Music OFF → ON toggle. The caller passes
+  // the semantic "enabled" value directly so this callback never reads a stale ref.
+  const startBgmFromUserGesture = useCallback(
+    (enabled: boolean) => {
+      if (!audioUnlocked) return;
+      if (!isBgmPlaybackEligible(enabled, globalHostPaused, document.hidden)) return;
+
+      setupBgm();
+      startBgm(enabled);
+    },
+    [],
+  );
+
+  return { playSfx, audioStatus, unlockAudio, setParentMuted, setHostPaused, startBgmFromUserGesture };
 }
