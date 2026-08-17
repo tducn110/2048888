@@ -9,7 +9,7 @@
     "npm": "11.x"
   },
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && node scripts/build-wink-warm.mjs",
     "dev": "vite",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
