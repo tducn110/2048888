@@ -1,5 +1,5 @@
 export type Direction = "up" | "down" | "left" | "right";
-export type GameStatus = "idle" | "playing" | "won" | "lost";
+export type GameStatus = "idle" | "playing" | "lost";
 
 export interface TileCell {
   id: string;
@@ -28,6 +28,7 @@ export interface BoardState {
   score: number;
   scoreDelta: number;
   status: GameStatus;
+  hasReached2048: boolean;
   moveCount: number;
 }
 
