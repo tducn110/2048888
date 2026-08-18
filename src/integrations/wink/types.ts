@@ -58,12 +58,21 @@ export interface RedactedWinkState {
 }
 
 export interface WinkLeaderboardEntry {
+  id: string;
+  userId: string | null;
+  isAnonymous: boolean;
   rank: number;
   score: number;
   playTime: number | null;
   displayName: string | null;
   avatarUrl: string | null;
   createdAt: string | null;
+}
+
+export interface WinkSubmitScoreResult {
+  entry: WinkLeaderboardEntry;
+  isNewBest: boolean;
+  previousBest: number | null;
 }
 
 export interface WinkScoreInput {
@@ -103,7 +112,7 @@ export interface WinkGameClient {
     limit?: number;
     offset?: number;
   }): Promise<readonly WinkLeaderboardEntry[]>;
-  submitScore(input: WinkScoreInput): Promise<void>;
+  submitScore(input: WinkScoreInput): Promise<WinkSubmitScoreResult>;
   complete(input: WinkCompletionInput): Promise<void>;
   onPause(listener: () => void): () => void;
   onResume(listener: () => void): () => void;
@@ -122,13 +131,16 @@ export interface WinkIntegration {
   parentMuted: boolean;
   error: WinkIntegrationError | null;
   leaderboard: readonly WinkLeaderboardEntry[];
+  playerEntry: WinkLeaderboardEntry | null;
+  displayName: string | null;
+  bestScore: number;
   refreshLeaderboard(): Promise<void>;
   submitFinalScore(input: {
     roundId: string;
     score: number;
     playTimeSec: number;
     qualifies: boolean;
-  }): Promise<void>;
+  }): Promise<WinkSubmitScoreResult | null>;
   completeRound(input: {
     roundId: string;
     playDurationMs: number;

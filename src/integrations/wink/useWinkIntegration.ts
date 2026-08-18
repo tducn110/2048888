@@ -26,6 +26,7 @@ import type {
   WinkIntegrationErrorCode,
   WinkLeaderboardEntry,
   WinkGameClient,
+  WinkSubmitScoreResult,
 } from "./types";
 
 const EMPTY_CAPABILITIES: WinkCapabilities = Object.freeze({
@@ -228,6 +229,9 @@ export function useWinkIntegration(): WinkIntegration {
   const [leaderboard, setLeaderboard] = useState<
     readonly WinkLeaderboardEntry[]
   >([]);
+  const [playerEntry, setPlayerEntry] = useState<WinkLeaderboardEntry | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [bestScore, setBestScore] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -312,12 +316,16 @@ export function useWinkIntegration(): WinkIntegration {
     try {
       const entries = await connection.client.getLeaderboard({ limit: 100 });
       setLeaderboard(entries);
+      setBestScore((current) => {
+        const remoteBest = playerEntry?.score ?? 0;
+        return Math.max(current, remoteBest);
+      });
       setError(null);
       setState((current) => stateWithError(current, null));
     } catch (value) {
       throw recordError(value);
     }
-  }, [connection, offline, recordError, state.capabilities.getLeaderboard]);
+  }, [connection, offline, playerEntry?.score, recordError, state.capabilities.getLeaderboard]);
 
   const submitFinalScore = useCallback(
     async (input: {
@@ -325,8 +333,8 @@ export function useWinkIntegration(): WinkIntegration {
       score: number;
       playTimeSec: number;
       qualifies: boolean;
-    }) => {
-      if (!input.qualifies || offline) return;
+    }): Promise<WinkSubmitScoreResult | null> => {
+      if (!input.qualifies || offline) return null;
       if (!connection.client) {
         throw recordError(undefined, "BRIDGE_MISSING");
       }
@@ -334,18 +342,27 @@ export function useWinkIntegration(): WinkIntegration {
         throw recordError(undefined, "CAPABILITY_DENIED");
       }
       try {
-        await connection.client.submitScore({
+        const result = await connection.client.submitScore({
           score: input.score,
           playTime: input.playTimeSec,
           metadata: { roundId: input.roundId },
         });
+        setPlayerEntry(result.entry);
+        setDisplayName(result.entry.displayName);
+        setBestScore(
+          result.isNewBest
+            ? result.entry.score
+            : result.previousBest ?? result.entry.score,
+        );
+        await refreshLeaderboard();
         setError(null);
         setState((current) => stateWithError(current, null));
+        return result;
       } catch (value) {
         throw recordError(value);
       }
     },
-    [connection, offline, recordError, state.capabilities.submitScore],
+    [connection, offline, recordError, refreshLeaderboard, state.capabilities.submitScore],
   );
 
   const completeRound = useCallback(
@@ -379,6 +396,9 @@ export function useWinkIntegration(): WinkIntegration {
     parentMuted,
     error,
     leaderboard,
+    playerEntry,
+    displayName,
+    bestScore,
     refreshLeaderboard,
     submitFinalScore,
     completeRound,

@@ -19,6 +19,7 @@ import type {
   WinkGameClient,
   WinkIntegrationErrorCode,
   WinkLeaderboardEntry,
+  WinkSubmitScoreResult,
   WinkPhase,
   WinkScoreInput,
 } from './types';
@@ -347,6 +348,9 @@ function projectLeaderboardEntry(value: unknown): WinkLeaderboardEntry {
   }
 
   return Object.freeze({
+    id: value.id as string,
+    userId: value.userId as string | null,
+    isAnonymous: value.isAnonymous as boolean,
     rank: value.rank as number,
     score: value.score as number,
     playTime: value.playTime as number | null,
@@ -424,7 +428,7 @@ function validateScoreInput(input: unknown): {
   };
 }
 
-function assertSubmitScoreResult(value: unknown): void {
+function assertSubmitScoreResult(value: unknown): WinkSubmitScoreResult {
   if (
     !hasExactKeys(value, ['entry', 'isNewBest', 'previousBest']) ||
     typeof value.isNewBest !== 'boolean' ||
@@ -440,7 +444,11 @@ function assertSubmitScoreResult(value: unknown): void {
       true,
     );
   }
-  projectLeaderboardEntry(value.entry);
+  return Object.freeze({
+    entry: projectLeaderboardEntry(value.entry),
+    isNewBest: value.isNewBest as boolean,
+    previousBest: value.previousBest as number | null,
+  });
 }
 
 function validateCompletionInput(input: unknown): WinkCompletionInput {
@@ -486,10 +494,10 @@ export function createWinkGameClient(
   source: RawWinkBridge | null = getInstalledWinkBridge(),
 ): WinkGameClient {
   const bridge = requireBridge(source);
-  const scorePromises = new Map<string, Promise<void>>();
+  const scorePromises = new Map<string, Promise<WinkSubmitScoreResult>>();
   const completionPromises = new Map<string, Promise<void>>();
 
-  function submitScore(input: WinkScoreInput): Promise<void> {
+  function submitScore(input: WinkScoreInput): Promise<WinkSubmitScoreResult> {
     let validated: ReturnType<typeof validateScoreInput>;
     try {
       validated = validateScoreInput(input);
@@ -512,9 +520,7 @@ export function createWinkGameClient(
       return operation;
     }
     const operation = Promise.resolve(rawResult)
-      .then((result) => {
-        assertSubmitScoreResult(result);
-      })
+      .then((result) => assertSubmitScoreResult(result))
       .catch((error) => {
         throw normalizeError(error);
       });
