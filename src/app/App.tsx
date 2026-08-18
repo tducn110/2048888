@@ -38,6 +38,17 @@ export default function App() {
     setHostPaused(wink.hostPaused);
   }, [wink.hostPaused, setHostPaused]);
 
+  useEffect(() => {
+    if (
+      wink.mode === "wink" &&
+      (wink.phase === "ready_anonymous" || wink.phase === "ready_authenticated")
+    ) {
+      void wink.refreshLeaderboard().catch(() => {
+        // The Wink status/error surface owns the visible failure.
+      });
+    }
+  }, [wink.mode, wink.phase, wink.refreshLeaderboard]);
+
   // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
   const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
 
@@ -165,9 +176,12 @@ export default function App() {
       }}>
         {screen === "dashboard" && (
           <Dashboard
-            username="Khách"
-            bestScore={stats.bestScore}
+            username={wink.displayName ?? "Người chơi ẩn danh"}
+            bestScore={wink.mode === "wink" ? wink.bestScore : stats.bestScore}
             stats={stats}
+            remoteMode={wink.mode === "wink"}
+            remoteLeaderboard={wink.leaderboard}
+            remotePlayer={wink.playerEntry}
             onPlay={() => setScreen("game")}
           />
         )}

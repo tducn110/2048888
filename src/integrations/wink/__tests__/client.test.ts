@@ -126,6 +126,9 @@ describe('createWinkGameClient (2048)', () => {
       client.getLeaderboard({ limit: 10, offset: 0 }),
     ).resolves.toEqual([
       {
+        id: '12',
+        userId: '44444444-4444-4444-8444-444444444444',
+        isAnonymous: false,
         rank: 1,
         score: 321,
         playTime: 18,
@@ -215,7 +218,11 @@ describe('createWinkGameClient (2048)', () => {
       isNewBest: true,
       previousBest: null,
     });
-    await expect(firstScore).resolves.toBeUndefined();
+    await expect(firstScore).resolves.toMatchObject({
+      isNewBest: true,
+      previousBest: null,
+      entry: { score: 321, displayName: 'Winkgames Pilot User' },
+    });
     await expect(firstComplete).resolves.toBeUndefined();
 
     await client.submitScore({
@@ -249,7 +256,7 @@ describe('createWinkGameClient (2048)', () => {
         score: 1,
         metadata: { roundId: ROUND_A },
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ isNewBest: true });
     expect(raw.complete).toHaveBeenCalledTimes(1);
     expect(raw.submitScore).toHaveBeenCalledTimes(1);
   });

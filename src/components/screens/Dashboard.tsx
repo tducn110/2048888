@@ -2,17 +2,54 @@ import { Trophy } from "lucide-react";
 import type { LocalStats } from "@/types";
 import { getTileConfig } from "@/constants/tileConfig";
 import { BADGE_COLORS, buildLeaderboardModel, getRank, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
+import type { WinkLeaderboardEntry } from "@/integrations/wink/types";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
 
 interface DashboardProps {
   username: string;
   bestScore: number;
   stats: LocalStats;
+  remoteMode?: boolean;
+  remoteLeaderboard?: readonly WinkLeaderboardEntry[];
+  remotePlayer?: WinkLeaderboardEntry | null;
   onPlay: () => void;
 }
 
-export default function Dashboard({ username, bestScore, stats, onPlay }: DashboardProps) {
-  const { topEntries, currentPlayer } = buildLeaderboardModel(stats, username || "Người chơi");
+function buildRemoteModel(
+  entries: readonly WinkLeaderboardEntry[],
+  player: WinkLeaderboardEntry | null,
+) {
+  const ranked = entries.map((entry) => ({
+    name: entry.displayName ?? (entry.isAnonymous ? "Người chơi ẩn danh" : "Người chơi"),
+    score: entry.score,
+    maxTile: 0,
+    isLocal: player?.id === entry.id,
+    rank: entry.rank,
+  }));
+  const playerRow = player
+    ? {
+        name: player.displayName ?? (player.isAnonymous ? "Người chơi ẩn danh" : "Người chơi"),
+        score: player.score,
+        maxTile: 0,
+        isLocal: true,
+        rank: player.rank,
+      }
+    : null;
+  return { topEntries: ranked.slice(0, 10), currentPlayer: playerRow };
+}
+
+export default function Dashboard({
+  username,
+  bestScore,
+  stats,
+  remoteMode = false,
+  remoteLeaderboard = [],
+  remotePlayer = null,
+  onPlay,
+}: DashboardProps) {
+  const { topEntries, currentPlayer } = remoteMode
+    ? buildRemoteModel(remoteLeaderboard, remotePlayer)
+    : buildLeaderboardModel(stats, username || "Người chơi");
   const playerInTopTen = topEntries.find((entry) => entry.isLocal) ?? null;
   const playerRow = playerInTopTen ?? currentPlayer;
 
