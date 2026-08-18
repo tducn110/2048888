@@ -12,7 +12,7 @@
 # ----------------------------- PER-GAME INPUT --------------------------------
 # Slug: lowercase letters, digits, single hyphens. Becomes the subdomain, the
 # service name, and the registry path.
-GAME_SLUG="bo-lac-dau-phong-2048"
+GAME_SLUG="bo-lac-2048"
 
 # Display metadata (not used by the runtime contract).
 GAME_TITLE="Bộ Lạc Đậu Phộng 2048"
@@ -26,13 +26,13 @@ GAME_ID="b85fd50c-b3eb-4f4a-93eb-3101994e88e9"
 
 # "dev" or "prod". Promoting to prod additionally requires the platform-owner
 # approval described in game-template/docs/PRODUCTION_READINESS.md.
-ENVIRONMENT="dev"
+ENVIRONMENT="prod"
 # ---------------------------- /PER-GAME INPUT --------------------------------
 
 
 # ============================ DERIVED — DO NOT EDIT ==========================
 PROTOCOL_VERSION="1"
-BRIDGE_VERSION="9.0.0"
+BRIDGE_VERSION="9.0.1"
 REGISTRY="registry2.papagroup.net"
 NETWORK="traefik-public"
 NGINX_PORT="80"
@@ -50,7 +50,7 @@ case "${ENVIRONMENT}" in
     ;;
   prod)
     DOMAIN="${GAME_SLUG}.papastudio.net"
-    ALLOWED_PARENT_ORIGINS="https://winkgames.papastudio.net"
+    ALLOWED_PARENT_ORIGINS="https://winkgames.papastudio.net http://localhost:3000"
     STACK_NAME="papastudio-winkgames-games"
     IMAGE_NAME="winkgames/prod/${GAME_SLUG}"
     ROUTER_NAME="winkgames-minigame-prod-${GAME_SLUG}"

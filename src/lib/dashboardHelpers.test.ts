@@ -13,15 +13,13 @@ function stats(overrides: Partial<LocalStats>): LocalStats {
 }
 
 describe("buildLeaderboardModel", () => {
-  it("returns the top 10 leaderboard entries", () => {
+  it("does not invent leaderboard entries when no local score exists", () => {
     const model = buildLeaderboardModel(stats({}), "Người chơi");
 
-    expect(model.topEntries).toHaveLength(10);
-    expect(model.topEntries[0].rank).toBe(1);
-    expect(model.topEntries[9].rank).toBe(10);
+    expect(model.topEntries).toEqual([]);
   });
 
-  it("adds the current player separately when they are outside the top 10", () => {
+  it("ranks only the real local best score", () => {
     const model = buildLeaderboardModel(
       stats({
         bestScore: 1200,
@@ -31,15 +29,16 @@ describe("buildLeaderboardModel", () => {
       "Tôi",
     );
 
-    expect(model.topEntries).toHaveLength(10);
-    expect(model.topEntries.some((entry) => entry.isLocal)).toBe(false);
-    expect(model.currentPlayer).toMatchObject({
-      name: "Tôi",
-      score: 1200,
-      maxTile: 64,
-      rank: 11,
-      isLocal: true,
-    });
+    expect(model.topEntries).toEqual([
+      expect.objectContaining({
+        name: "Tôi",
+        score: 1200,
+        maxTile: 64,
+        rank: 1,
+        isLocal: true,
+      }),
+    ]);
+    expect(model.currentPlayer).toBeNull();
   });
 
   it("uses an unknown rank for a player without a saved score", () => {

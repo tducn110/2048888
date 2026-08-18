@@ -6,11 +6,11 @@
  * artifact is certified by version, protocol, byte length, and checksum.
  */
 
-export const BRIDGE_VERSION = '9.0.0';
+export const BRIDGE_VERSION = '9.0.1';
 export const PROTOCOL_VERSION = 1;
 export const BRIDGE_SHA256 =
-  'afe2a789466c3d68f4eec7d8cf2e718f45a29a19a5d8b9eb8c4cec10b18f31eb';
-export const BRIDGE_BYTES = 35_128;
+  '089b2d6c2261a7b285fa8acf5ff599e6d2aba9c1366f9def4ae1b1f9fefcfbda';
+export const BRIDGE_BYTES = 35_718;
 
 /**
  * Provenance of the certified artifact in the Wink repository. This records
@@ -20,7 +20,7 @@ export const BRIDGE_BYTES = 35_128;
  */
 export const BRIDGE_SOURCE = Object.freeze({
   repository: 'wink',
-  commit: 'efc50ed4a27cb55f351c257350e1993d385e4a3f',
+  commit: 'fa76cdb800377579bb3459164afb92f0bbace379',
   artifact: 'game-template/wink-bridge.js',
   manifest: 'game-template/wink-bridge.manifest.json',
 });
@@ -57,7 +57,10 @@ export const ENVIRONMENT_CONTRACT = Object.freeze({
   // production API base, and promoting a game to production additionally needs
   // the platform-owner approval described in docs/PRODUCTION_READINESS.md.
   prod: Object.freeze({
-    parentOrigins: Object.freeze(['https://winkgames.papastudio.net']),
+    parentOrigins: Object.freeze([
+      'https://winkgames.papastudio.net',
+      'http://localhost:3000',
+    ]),
     apiBase: 'https://api-winkgames.papastudio.net/api/v1',
     domainPrefix: '',
     stackName: 'papastudio-winkgames-games',

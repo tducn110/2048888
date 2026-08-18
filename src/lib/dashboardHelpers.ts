@@ -1,5 +1,4 @@
 import type { LocalStats } from "@/types";
-import { MOCK_LEADERBOARD } from "@/constants/tileConfig";
 
 export const BADGE_COLORS = [
   { bg: "#f0b840", border: "#c8941a", text: "#2a2418", label: "Vang" },
@@ -49,7 +48,7 @@ function getBestLocalEntry(stats: LocalStats, playerName: string): LeaderboardEn
 
 export function buildLeaderboardModel(stats: LocalStats, playerName = "Người chơi"): LeaderboardModel {
   const localBest = getBestLocalEntry(stats, playerName);
-  const leaderboardEntries: LeaderboardEntry[] = [...MOCK_LEADERBOARD, ...(localBest ? [localBest] : [])];
+  const leaderboardEntries: LeaderboardEntry[] = localBest ? [localBest] : [];
   const ranked: RankedLeaderboardEntry[] = leaderboardEntries
     .sort((a, b) => b.score - a.score)
     .map((entry, index) => ({ ...entry, rank: index + 1 }));

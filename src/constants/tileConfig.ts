@@ -25,16 +25,3 @@ export function getTileConfig(value: number): TileConfig {
     }
   );
 }
-
-export const MOCK_LEADERBOARD = [
-  { name: "Minh Tài 🏆", score: 18240, maxTile: 2048 },
-  { name: "Lan Anh",      score: 14560, maxTile: 1024 },
-  { name: "Quốc Hùng",   score: 11200, maxTile: 1024 },
-  { name: "Thu Hà",       score: 8840,  maxTile: 512  },
-  { name: "Đức Thành",   score: 6400,  maxTile: 512  },
-  { name: "Bảo Ngọc",     score: 5200,  maxTile: 512  },
-  { name: "Hải Long",     score: 4100,  maxTile: 256  },
-  { name: "Mai Chi",      score: 3200,  maxTile: 256  },
-  { name: "An Nhiên",     score: 2400,  maxTile: 128  },
-  { name: "Tùng Lâm",     score: 1800,  maxTile: 128  },
-];
