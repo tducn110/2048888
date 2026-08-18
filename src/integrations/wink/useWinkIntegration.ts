@@ -320,6 +320,7 @@ export function useWinkIntegration(): WinkIntegration {
   const refreshLeaderboard = useCallback(async () => {
     if (offline) {
       setLeaderboard([]);
+      setPlayerEntry(null);
       return;
     }
     if (!connection.client) {
@@ -329,18 +330,24 @@ export function useWinkIntegration(): WinkIntegration {
       throw recordError(undefined, "CAPABILITY_DENIED");
     }
     try {
-      const entries = await connection.client.getLeaderboard({ limit: 100 });
-      setLeaderboard(entries);
-      setBestScore((current) => {
-        const remoteBest = playerEntry?.score ?? 0;
-        return Math.max(current, remoteBest);
-      });
+      // 30 is the server's cap; anything larger is trimmed to it server-side.
+      const board = await connection.client.getLeaderboard({ limit: 30 });
+      setLeaderboard(board.entries);
+      // `me` is the server's own answer for this player, so the home screen has
+      // a best score on first load instead of waiting for a round to be
+      // submitted. Read it off the response rather than the state we are about
+      // to replace, which was always null on that first load.
+      setPlayerEntry(board.me);
+      if (board.me) {
+        setDisplayName(board.me.displayName);
+      }
+      setBestScore((current) => Math.max(current, board.me?.score ?? 0));
       setError(null);
       setState((current) => stateWithError(current, null));
     } catch (value) {
       throw recordError(value);
     }
-  }, [connection, offline, playerEntry?.score, recordError, state.capabilities.getLeaderboard]);
+  }, [connection, offline, recordError, state.capabilities.getLeaderboard]);
 
   const submitFinalScore = useCallback(
     async (input: {

@@ -124,19 +124,66 @@ describe('createWinkGameClient (2048)', () => {
 
     await expect(
       client.getLeaderboard({ limit: 10, offset: 0 }),
-    ).resolves.toEqual([
-      {
-        id: '12',
-        userId: '44444444-4444-4444-8444-444444444444',
-        isAnonymous: false,
-        rank: 1,
-        score: 321,
-        playTime: 18,
-        displayName: 'Winkgames Pilot User',
-        avatarUrl: null,
-        createdAt: '2026-07-29T15:00:00.000Z',
-      },
-    ]);
+    ).resolves.toEqual({
+      entries: [
+        {
+          id: '12',
+          userId: '44444444-4444-4444-8444-444444444444',
+          isAnonymous: false,
+          rank: 1,
+          score: 321,
+          playTime: 18,
+          displayName: 'Winkgames Pilot User',
+          avatarUrl: null,
+          createdAt: '2026-07-29T15:00:00.000Z',
+        },
+      ],
+      me: null,
+    });
+  });
+
+  it('projects the viewer own best, which need not appear in the page', async () => {
+    const client = createWinkGameClient(
+      bridge({
+        getLeaderboard: vi.fn(async () => ({
+          entries: [rawEntry()],
+          total: 4213,
+          me: rawEntry({ rank: 812, score: 99 }),
+        })),
+      }),
+    );
+
+    await expect((await client.getLeaderboard()).me).toEqual({
+      id: '12',
+      userId: '44444444-4444-4444-8444-444444444444',
+      isAnonymous: false,
+      rank: 812,
+      score: 99,
+      playTime: 18,
+      displayName: 'Winkgames Pilot User',
+      avatarUrl: null,
+      createdAt: '2026-07-29T15:00:00.000Z',
+    });
+  });
+
+  it('reads a null me, and an absent me, as no personal best', async () => {
+    const nulled = createWinkGameClient(
+      bridge({
+        getLeaderboard: vi.fn(async () => ({ entries: [], total: 0, me: null })),
+      }),
+    );
+
+    expect((await nulled.getLeaderboard()).me).toBeNull();
+
+    // A server that predates the field must read as "nothing to show" rather
+    // than as a broken response, or rollout order alone breaks the board.
+    const absent = createWinkGameClient(
+      bridge({
+        getLeaderboard: vi.fn(async () => ({ entries: [], total: 0 })),
+      }),
+    );
+
+    expect((await absent.getLeaderboard()).me).toBeNull();
   });
 
   it.each([
