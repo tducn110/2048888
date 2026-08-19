@@ -236,31 +236,45 @@ export function useWinkIntegration(): WinkIntegration {
   useEffect(() => {
     let active = true;
     const client = connection.client;
-    if (!client) return;
+    const cleanups: Array<() => void> = [];
 
-    const applyState = (next: RedactedWinkState) => {
-      const projectedError = next.error ? safeError(next.error) : null;
-      setState(stateWithError(next, projectedError));
-      setError(projectedError);
-      setHostPaused(next.lifecycle.paused);
-      setParentMuted(next.lifecycle.muted);
+    const handlePause = () => {
+      setHostPaused(true);
+      setState((current) => stateWithLifecycle(current, { paused: true }));
     };
 
-    const cleanups: Array<() => void> = [];
-    try {
-      cleanups.push(client.subscribe(applyState));
-      cleanups.push(
-        client.onPause(() => {
-          setHostPaused(true);
-          setState((current) => stateWithLifecycle(current, { paused: true }));
-        }),
-      );
-      cleanups.push(
-        client.onResume(() => {
-          setHostPaused(false);
-          setState((current) => stateWithLifecycle(current, { paused: false }));
-        }),
-      );
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handlePause();
+      }
+    };
+
+    window.addEventListener("blur", handlePause);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    cleanups.push(() => {
+      window.removeEventListener("blur", handlePause);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    });
+
+    if (client) {
+      const applyState = (next: RedactedWinkState) => {
+        const projectedError = next.error ? safeError(next.error) : null;
+        setState(stateWithError(next, projectedError));
+        setError(projectedError);
+        setHostPaused(next.lifecycle.paused);
+        setParentMuted(next.lifecycle.muted);
+      };
+
+      try {
+        cleanups.push(client.subscribe(applyState));
+        cleanups.push(client.onPause(handlePause));
+        cleanups.push(
+          client.onResume(() => {
+            setHostPaused(false);
+            setState((current) => stateWithLifecycle(current, { paused: false }));
+          }),
+        );
       cleanups.push(
         client.onMute(() => {
           setParentMuted(true);
@@ -273,14 +287,15 @@ export function useWinkIntegration(): WinkIntegration {
           setState((current) => stateWithLifecycle(current, { muted: false }));
         }),
       );
-    } catch (value) {
-      const nextError = safeError(value, "MESSAGE_REJECTED");
-      cleanups.splice(0).forEach((cleanup) => cleanup());
-      queueMicrotask(() => {
-        if (!active) return;
-        setError(nextError);
-        setState((current) => stateWithError(current, nextError));
-      });
+      } catch (value) {
+        const nextError = safeError(value, "MESSAGE_REJECTED");
+        cleanups.splice(0).forEach((cleanup) => cleanup());
+        queueMicrotask(() => {
+          if (!active) return;
+          setError(nextError);
+          setState((current) => stateWithError(current, nextError));
+        });
+      }
     }
 
     return () => {

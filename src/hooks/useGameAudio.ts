@@ -368,34 +368,6 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     };
   }, [playSfx]);
 
-  // Handle visibility change (tab switch / minimize)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        if (bgmElement && !bgmElement.paused) {
-          bgmElement.pause();
-          bgmStarted = false;
-        }
-        if (audioCtx && audioCtx.state === "running") {
-          audioCtx.suspend().catch(() => {});
-        }
-      } else {
-        if (!globalHostPaused && audioCtx && audioCtx.state === "suspended") {
-          audioCtx.resume().catch(() => {});
-        }
-        // Resume/start BGM only while music is enabled — foregrounding
-        // must never initialize BGM for a music-off session.
-        if (!globalHostPaused && canStartBgm(musicEnabledRef.current)) {
-          startBgm(musicEnabledRef.current);
-        }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
 
   const setParentMuted = useCallback((muted: boolean) => {
     globalParentMuted = muted;
