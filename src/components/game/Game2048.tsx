@@ -106,6 +106,9 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     revive();
   };
 
+  const gameCardRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
   const handleSwipe = (dir: Direction) => {
     if (inputEnabled) {
       // Fire onRoundStart on first move
@@ -118,8 +121,92 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     }
   };
 
+  const handleSwipeRef = useRef(handleSwipe);
+  useEffect(() => {
+    handleSwipeRef.current = handleSwipe;
+  });
+
+  useEffect(() => {
+    if (!inputEnabled || status !== "playing") {
+      return;
+    }
+
+    const targetElement: HTMLElement =
+      (gameCardRef.current?.closest(".app-main--game") as HTMLElement | null) ??
+      (gameCardRef.current?.closest(".game-screen-slot") as HTMLElement | null) ??
+      gameCardRef.current ??
+      document.body;
+
+    const isInteractive = (target: EventTarget | null): boolean => {
+      if (!(target instanceof Element)) return false;
+      return Boolean(
+        target.closest(
+          'button, a, input, textarea, select, [role="button"], [data-no-game-swipe]'
+        )
+      );
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (isInteractive(e.target)) {
+        touchStartRef.current = null;
+        return;
+      }
+      const t = e.touches[0];
+      if (t) {
+        touchStartRef.current = { x: t.clientX, y: t.clientY };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (touchStartRef.current && e.cancelable) {
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!touchStartRef.current) return;
+      const t = e.changedTouches[0];
+      const start = touchStartRef.current;
+      touchStartRef.current = null;
+
+      if (!t) return;
+
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      const THRESHOLD = 24;
+
+      if (Math.max(absDx, absDy) < THRESHOLD) return;
+
+      if (absDx > absDy) {
+        handleSwipeRef.current(dx > 0 ? "right" : "left");
+      } else {
+        handleSwipeRef.current(dy > 0 ? "down" : "up");
+      }
+    };
+
+    const handleTouchCancel = () => {
+      touchStartRef.current = null;
+    };
+
+    targetElement.addEventListener("touchstart", handleTouchStart, { passive: true });
+    targetElement.addEventListener("touchmove", handleTouchMove, { passive: false });
+    targetElement.addEventListener("touchend", handleTouchEnd, { passive: true });
+    targetElement.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+
+    return () => {
+      targetElement.removeEventListener("touchstart", handleTouchStart);
+      targetElement.removeEventListener("touchmove", handleTouchMove);
+      targetElement.removeEventListener("touchend", handleTouchEnd);
+      targetElement.removeEventListener("touchcancel", handleTouchCancel);
+    };
+  }, [inputEnabled, status]);
+
   return (
     <div
+      ref={gameCardRef}
       className="game-card"
       style={{
         background: theme.panelBackground,

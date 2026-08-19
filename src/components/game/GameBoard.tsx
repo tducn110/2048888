@@ -4,19 +4,13 @@ import { Pixi2048Renderer } from "./Pixi2048Renderer";
 
 interface GameBoardProps {
   tiles: TileCell[];
-  onSwipe: (dir: Direction) => void;
+  onSwipe?: (dir: Direction) => void;
   background: string;
 }
 
-export default function GameBoard({ tiles, onSwipe, background }: GameBoardProps) {
+export default function GameBoard({ tiles, background }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Pixi2048Renderer | null>(null);
-
-  // Keep ref to avoid binding closures to resize event
-  const onSwipeRef = useRef(onSwipe);
-  useEffect(() => {
-    onSwipeRef.current = onSwipe;
-  }, [onSwipe]);
 
   // Handle ResizeObserver
   useEffect(() => {
@@ -74,55 +68,6 @@ export default function GameBoard({ tiles, onSwipe, background }: GameBoardProps
       rendererRef.current.renderTiles(tiles);
     }
   }, [tiles]);
-
-  // Swipe logic
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.target instanceof Element && e.target.closest('button, [role="button"], a')) {
-        return;
-      }
-      const t = e.touches[0];
-      touchStart.current = { x: t.clientX, y: t.clientY };
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (!touchStart.current) return;
-      const t = e.changedTouches[0];
-      const dx = t.clientX - touchStart.current.x;
-      const dy = t.clientY - touchStart.current.y;
-      touchStart.current = null;
-
-      const absDx = Math.abs(dx);
-      const absDy = Math.abs(dy);
-      const THRESHOLD = 24;
-
-      if (Math.max(absDx, absDy) < THRESHOLD) return;
-
-      if (absDx > absDy) {
-        onSwipeRef.current(dx > 0 ? "right" : "left");
-      } else {
-        onSwipeRef.current(dy > 0 ? "down" : "up");
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (touchStart.current && e.cancelable) {
-        e.preventDefault();
-      }
-    };
-
-    document.addEventListener("touchstart", handleTouchStart, { passive: true });
-    document.addEventListener("touchend", handleTouchEnd, { passive: true });
-    document.addEventListener("touchmove", handleTouchMove, { passive: false });
-
-    return () => {
-      document.removeEventListener("touchstart", handleTouchStart);
-      document.removeEventListener("touchend", handleTouchEnd);
-      document.removeEventListener("touchmove", handleTouchMove);
-    };
-  }, []);
 
   return (
     <div
