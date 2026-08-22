@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import Game2048 from "@/components/game/Game2048";
 import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
-import { useLocalStats } from "@/hooks/useLocalStats";
 import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
@@ -18,7 +17,6 @@ function newRoundId(): string {
 }
 
 export default function App() {
-  const { stats, recordGame, updateLastGameScore } = useLocalStats();
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
@@ -74,7 +72,7 @@ export default function App() {
     score: number,
     _maxTile: number,
     playTimeMs: number,
-    doubled: boolean,
+    _doubled: boolean,
   ) => {
     const roundId = activeRoundId;
     setActiveRoundId(null);
@@ -91,6 +89,7 @@ export default function App() {
         playTimeSec,
         qualifies: true,
       });
+      await wink.refreshLeaderboard();
     } catch (err: unknown) {
       // CAPABILITY_DENIED is expected for anonymous — already handled by the
       // hook setting the error state. Log unexpected errors only.
@@ -110,9 +109,6 @@ export default function App() {
       console.error("[Wink] completeRound failed", err);
     }
 
-    // Persist local stats regardless of Wink outcome
-    recordGame(score, _maxTile);
-    if (doubled) updateLastGameScore(score);
   };
 
   return (
@@ -176,12 +172,9 @@ export default function App() {
       }}>
         {screen === "dashboard" && (
           <Dashboard
-            username={wink.displayName ?? "Người chơi ẩn danh"}
-            bestScore={wink.mode === "wink" ? wink.bestScore : stats.bestScore}
-            stats={stats}
-            remoteMode={wink.mode === "wink"}
-            remoteLeaderboard={wink.leaderboard}
-            remotePlayer={wink.playerEntry}
+            bestScore={wink.bestScore}
+            leaderboard={wink.leaderboard}
+            player={wink.playerEntry}
             onPlay={() => setScreen("game")}
           />
         )}
@@ -190,11 +183,8 @@ export default function App() {
           <>
             <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
               <Game2048
-                bestScore={stats.bestScore}
+                bestScore={wink.bestScore}
                 onGameEnd={onGameEnd}
-                onScoreDoubled={(newScore) => {
-                  updateLastGameScore(newScore);
-                }}
                 onRoundStart={onRoundStart}
                 bgId={bgId}
                 setBgId={setBgId}
