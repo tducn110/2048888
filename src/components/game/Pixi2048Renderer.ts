@@ -109,19 +109,7 @@ export class Pixi2048Renderer {
     bg.label = "bg";
     tileContainer.addChild(bg);
 
-    const labelText = new Text({
-      text: "",
-      style: {
-        fontFamily: "sans-serif",
-        fontWeight: "700",
-        fontSize: 9,
-        letterSpacing: 0.4,
-      }
-    });
-    labelText.label = "labelText";
-    labelText.alpha = 0.75;
-    labelText.anchor.set(0.5);
-    tileContainer.addChild(labelText);
+
 
     const valueText = new Text({
       text: "",
@@ -178,19 +166,7 @@ export class Pixi2048Renderer {
         bg.fill(cfg.colorBg);
         bg.stroke({ color: 0x2a2418, alpha: 0.18, width: 2 });
 
-        // Update Label
-        const labelText = tileContainer.getChildByLabel("labelText") as Text;
-        if (cellSize >= 72) {
-          labelText.visible = true;
-          if (labelText.text !== cfg.label.toUpperCase()) {
-            labelText.text = cfg.label.toUpperCase();
-          }
-          labelText.style.fill = cfg.colorText;
-          labelText.x = cellSize / 2;
-          labelText.y = 12;
-        } else {
-          labelText.visible = false;
-        }
+
 
         // Update Value Text
         const valueText = tileContainer.getChildByLabel("valueText") as Text;
@@ -240,11 +216,7 @@ export class Pixi2048Renderer {
           bg.fill(cfg.colorBg);
           bg.stroke({ color: 0x2a2418, alpha: 0.18, width: 2 });
           
-          const labelText = tileContainer.getChildByLabel("labelText") as Text;
-          if (cellSize >= 72) {
-            labelText.text = cfg.label.toUpperCase();
-            labelText.style.fill = cfg.colorText;
-          }
+
         }
 
         if (tile.isMerged) {

@@ -5,10 +5,11 @@ import GameHeader from "./GameHeader";
 import GameHUD from "./GameHUD";
 import type { Direction } from "@/types";
 import Button from "@/components/ui/Button";
-import { RefreshCw, AlertTriangle, ChartColumnBig, Settings, Loader2 } from "lucide-react";
+import { ChartColumnBig, Settings, Loader2, Clapperboard } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
+import { showRewardedVideo } from "@/integrations/ads/googleH5Ads";
 
 interface Game2048Props {
   bestScore: number;
@@ -41,6 +42,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const [showContinue, setShowContinue] = useState(true);
   const [isScoreDoubled, setIsScoreDoubled] = useState(false);
   const [pendingDoubleScore, setPendingDoubleScore] = useState(0);
+  const [adPending, setAdPending] = useState(false);
 
   useEffect(() => {
     if (status === "lost" && !showContinue && !recordedRef.current) {
@@ -101,8 +103,13 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     reset();
   };
 
-  const handleRevive = () => {
+  const handleRevive = async () => {
+    if (adPending) return;
+    setAdPending(true);
+    const rewarded = await showRewardedVideo({ name: "revive_after_loss" });
+    setAdPending(false);
     setShowContinue(false);
+    if (!rewarded) return;
     revive();
   };
 
@@ -146,33 +153,27 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       );
     };
 
-    const handleTouchStart = (e: TouchEvent) => {
-      if (isInteractive(e.target)) {
+    const handleStart = (clientX: number, clientY: number, target: EventTarget | null) => {
+      if (isInteractive(target)) {
         touchStartRef.current = null;
         return;
       }
-      const t = e.touches[0];
-      if (t) {
-        touchStartRef.current = { x: t.clientX, y: t.clientY };
-      }
+      touchStartRef.current = { x: clientX, y: clientY };
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
+    const handleMove = (e: Event) => {
       if (touchStartRef.current && e.cancelable) {
         e.preventDefault();
       }
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
+    const handleEnd = (clientX: number, clientY: number) => {
       if (!touchStartRef.current) return;
-      const t = e.changedTouches[0];
       const start = touchStartRef.current;
       touchStartRef.current = null;
 
-      if (!t) return;
-
-      const dx = t.clientX - start.x;
-      const dy = t.clientY - start.y;
+      const dx = clientX - start.x;
+      const dy = clientY - start.y;
 
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
@@ -187,20 +188,95 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       }
     };
 
-    const handleTouchCancel = () => {
+    const handleCancel = () => {
       touchStartRef.current = null;
     };
 
-    targetElement.addEventListener("touchstart", handleTouchStart, { passive: true });
-    targetElement.addEventListener("touchmove", handleTouchMove, { passive: false });
-    targetElement.addEventListener("touchend", handleTouchEnd, { passive: true });
-    targetElement.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+    let wheelCooldownTimer: ReturnType<typeof setTimeout> | null = null;
+    let wheelAccumResetTimer: ReturnType<typeof setTimeout> | null = null;
+    let wheelAccumX = 0;
+    let wheelAccumY = 0;
+    
+    const onWheel = (e: WheelEvent) => {
+      if (isInteractive(e.target)) return;
+      if (e.cancelable) e.preventDefault();
+
+      if (wheelCooldownTimer) {
+        clearTimeout(wheelCooldownTimer);
+        wheelCooldownTimer = setTimeout(() => {
+          wheelCooldownTimer = null;
+        }, 200);
+        return;
+      }
+
+      if (wheelAccumResetTimer) clearTimeout(wheelAccumResetTimer);
+      wheelAccumResetTimer = setTimeout(() => {
+        wheelAccumX = 0;
+        wheelAccumY = 0;
+      }, 100);
+
+      wheelAccumX += e.deltaX;
+      wheelAccumY += e.deltaY;
+
+      const absX = Math.abs(wheelAccumX);
+      const absY = Math.abs(wheelAccumY);
+      const WHEEL_THRESHOLD = 40;
+
+      if (Math.max(absX, absY) >= WHEEL_THRESHOLD) {
+        if (absX > absY) {
+          handleSwipeRef.current(wheelAccumX > 0 ? "left" : "right");
+        } else {
+          handleSwipeRef.current(wheelAccumY > 0 ? "up" : "down");
+        }
+        
+        wheelAccumX = 0;
+        wheelAccumY = 0;
+
+        wheelCooldownTimer = setTimeout(() => {
+          wheelCooldownTimer = null;
+        }, 200);
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => handleStart(e.touches[0]?.clientX || 0, e.touches[0]?.clientY || 0, e.target);
+    const onTouchMove = (e: TouchEvent) => handleMove(e);
+    const onTouchEnd = (e: TouchEvent) => handleEnd(e.changedTouches[0]?.clientX || 0, e.changedTouches[0]?.clientY || 0);
+
+    const onMouseDown = (e: MouseEvent) => handleStart(e.clientX, e.clientY, e.target);
+    const onMouseMove = (e: MouseEvent) => handleMove(e);
+    const onMouseUp = (e: MouseEvent) => handleEnd(e.clientX, e.clientY);
+
+    targetElement.addEventListener("touchstart", onTouchStart, { passive: true });
+    targetElement.addEventListener("touchmove", onTouchMove, { passive: false });
+    targetElement.addEventListener("touchend", onTouchEnd, { passive: true });
+    targetElement.addEventListener("touchcancel", handleCancel, { passive: true });
+
+    targetElement.addEventListener("mousedown", onMouseDown, { passive: true });
+    targetElement.addEventListener("mousemove", onMouseMove, { passive: false });
+    targetElement.addEventListener("mouseup", onMouseUp, { passive: true });
+    targetElement.addEventListener("mouseleave", handleCancel, { passive: true });
+    
+    targetElement.addEventListener("wheel", onWheel as EventListener, { passive: false });
+    
+    window.addEventListener("blur", handleCancel, { passive: true });
 
     return () => {
-      targetElement.removeEventListener("touchstart", handleTouchStart);
-      targetElement.removeEventListener("touchmove", handleTouchMove);
-      targetElement.removeEventListener("touchend", handleTouchEnd);
-      targetElement.removeEventListener("touchcancel", handleTouchCancel);
+      if (wheelCooldownTimer) clearTimeout(wheelCooldownTimer);
+      if (wheelAccumResetTimer) clearTimeout(wheelAccumResetTimer);
+      
+      targetElement.removeEventListener("touchstart", onTouchStart);
+      targetElement.removeEventListener("touchmove", onTouchMove);
+      targetElement.removeEventListener("touchend", onTouchEnd);
+      targetElement.removeEventListener("touchcancel", handleCancel);
+
+      targetElement.removeEventListener("mousedown", onMouseDown);
+      targetElement.removeEventListener("mousemove", onMouseMove);
+      targetElement.removeEventListener("mouseup", onMouseUp);
+      targetElement.removeEventListener("mouseleave", handleCancel);
+      
+      targetElement.removeEventListener("wheel", onWheel as EventListener);
+      
+      window.removeEventListener("blur", handleCancel);
     };
   }, [inputEnabled, status]);
 
@@ -224,6 +300,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         padding: "clamp(8px, 2dvh, 14px) clamp(10px, 3.6vw, 14px) clamp(10px, 2.4dvh, 18px)",
         boxSizing: "border-box",
         overflow: "hidden",
+        touchAction: "none",
       }}
     >
       <div
@@ -365,65 +442,39 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             </div>
           )}
 
-          {/* Overlay: LOST (Continue?) */}
-          {status === "lost" && showContinue && (
-            <GameOverlay
-              icon={<AlertTriangle size={40} color={theme.danger} />}
-              title="Tiếp tục?"
-              subtitle="Bạn có muốn hồi sinh không?"
-              titleColor={theme.danger}
+          {/* Overlay: LOST (Continue / Final Results) */}
+          {status === "lost" && (
+            <GameDecisionOverlay
+              mode={showContinue ? "revive" : "final"}
+              score={score}
+              adPending={adPending}
               theme={theme}
-            >
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-                <Button
-                  onClick={handleRevive}
-                  size="md"
-                  variant="primary"
-                  style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}
-                >
-                  ❤️ Có
-                </Button>
-                <Button onClick={() => setShowContinue(false)} size="md" variant="secondary">
-                  Không
-                </Button>
-              </div>
-            </GameOverlay>
-          )}
-
-          {/* Overlay: LOST (Final Results) */}
-          {status === "lost" && !showContinue && (
-            <GameOverlay
-              icon={<AlertTriangle size={40} color={theme.danger} />}
-              title="Hết Đường!"
-              subtitle={`Kết quả: ${score.toLocaleString("vi-VN")} điểm`}
-              titleColor={theme.danger}
-              theme={theme}
-            >
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-                {!isScoreDoubled && (
-                  <Button
-                    onClick={() => { 
+              onContinue={handleRevive}
+              onDecline={() => setShowContinue(false)}
+              onDouble={
+                isScoreDoubled
+                  ? undefined
+                  : async () => {
+                      if (adPending) return;
+                      setAdPending(true);
+                      const rewarded = await showRewardedVideo({ name: "double_final_score" });
+                      setAdPending(false);
+                      if (!rewarded) {
+                        alert("Không có video quảng cáo vào lúc này.");
+                        return;
+                      }
                       const doubled = score * 2;
                       setPendingDoubleScore(doubled);
                       setIsScoreDoubled(true);
                       doubleScore();
                       onScoreDoubled?.(doubled);
-                    }}
-                    size="md"
-                    variant="primary"
-                    style={{ background: theme.ctaGradient, borderColor: theme.ctaBorder, boxShadow: theme.ctaShadow }}
-                  >
-                    x2 Điểm
-                  </Button>
-                )}
-                <Button onClick={handleReset} size="md" variant="secondary">
-                  <RefreshCw size={16} /> Thử lại
-                </Button>
-              </div>
-            </GameOverlay>
+                    }
+              }
+              onEnd={handleReset}
+            />
           )}
-        </div>
 
+        </div>
       </div>
     </div>
   );
@@ -465,74 +516,137 @@ function IconButton({
   );
 }
 
-function GameOverlay({
-  icon,
-  title,
-  subtitle,
-  titleColor,
-  theme,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  titleColor: string;
-  theme: GameTheme;
-  children: React.ReactNode;
-}) {
+function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onEnd, theme, adPending }: any) {
+  const cardStyle = {
+    width: "100%",
+    maxWidth: 320,
+    background: theme.overlayPanelBg,
+    border: `2px solid ${theme.overlayPanelBorder}`,
+    borderRadius: 28,
+    boxShadow: "0 10px 32px rgba(58,38,17,0.18), 0 2px 0 rgba(255,255,255,0.7) inset",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "clamp(24px, 6vw, 32px) clamp(16px, 4vw, 24px)",
+    gap: "clamp(20px, 5vw, 28px)",
+    boxSizing: "border-box",
+  } as const;
+
+  const textColor = "var(--wood-dark)";
+  
+  const renderRewardButton = (label: string, onClick: () => void) => (
+    <Button
+      onClick={onClick}
+      disabled={adPending}
+      size="md"
+      variant="primary"
+      style={{
+        width: "100%",
+        background: theme.ctaGradient,
+        borderColor: theme.ctaBorder,
+        boxShadow: theme.ctaShadow,
+        height: 54,
+        fontSize: 18,
+        borderRadius: 27,
+      }}
+    >
+      <Clapperboard size={22} strokeWidth={2.5} />
+      {label}
+    </Button>
+  );
+
+  const renderSecondaryButton = (label: string, onClick: () => void) => (
+    <Button
+      onClick={onClick}
+      disabled={adPending}
+      size="md"
+      variant="secondary"
+      style={{
+        width: "100%",
+        height: 54,
+        fontSize: 18,
+        borderRadius: 27,
+        background: "rgba(255,255,255,0.9)",
+        fontWeight: 600,
+        color: textColor,
+      }}
+    >
+      {label}
+    </Button>
+  );
+
   return (
     <div
       style={{
         position: "absolute",
         inset: 0,
-        borderRadius: 20,
+        zIndex: 20,
         background: theme.overlayBg,
         backdropFilter: "blur(4px)",
-        padding: "clamp(8px, 3vw, 16px)",
+        display: "grid",
+        placeItems: "center",
+        padding: "clamp(16px, 4vw, 24px)",
         boxSizing: "border-box",
-        zIndex: 20,
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          borderRadius: 22,
-          background: theme.overlayPanelBg,
-          border: `2px solid ${theme.overlayPanelBorder}`,
-          boxShadow: "0 10px 24px rgba(58,38,17,0.16), 0 2px 0 rgba(255,255,255,0.74) inset",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "clamp(10px, 3.4vw, 14px)",
-          padding: "clamp(12px, 4vw, 22px)",
-          boxSizing: "border-box",
-      }}
-    >
-      {icon}
-      <div style={{ textAlign: "center" }}>
-        <h2
-          style={{
-            fontFamily: "'Be Vietnam Pro', sans-serif",
-            fontWeight: 800,
-            fontSize: "clamp(22px, 7vw, 28px)",
-            lineHeight: 1.08,
-            color: titleColor,
-            margin: "0 0 6px",
-            textShadow: "0 2px 0 rgba(255,255,255,0.6)",
-          }}
-        >
-          {title}
-        </h2>
-        <p style={{ fontSize: "clamp(12px, 3.8vw, 14px)", color: "var(--pencil-gray)", margin: 0, fontWeight: 500, lineHeight: 1.35 }}>
-          {subtitle}
-        </p>
-      </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280, minWidth: 0 }}>
-        {children}
-      </div>
+      <div style={cardStyle}>
+        {mode === "revive" ? (
+          <>
+            <div
+              style={{
+                fontFamily: "'Be Vietnam Pro', sans-serif",
+                fontWeight: 800,
+                fontSize: "clamp(36px, 8vw, 42px)",
+                lineHeight: 1.1,
+                color: textColor,
+                textShadow: "0 2px 0 rgba(255,255,255,0.6)",
+                textAlign: "center",
+              }}
+            >
+              Thua rồi!
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+              {renderRewardButton("Tiếp tục chơi", onContinue)}
+              {renderSecondaryButton("Không", onDecline)}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div
+                style={{
+                  fontFamily: "'Be Vietnam Pro', sans-serif",
+                  fontWeight: 800,
+                  fontSize: "clamp(42px, 10vw, 56px)",
+                  lineHeight: 1,
+                  color: textColor,
+                  textShadow: "0 2px 0 rgba(255,255,255,0.6)",
+                }}
+              >
+                {score.toLocaleString("vi-VN")}
+              </div>
+              <div
+                style={{
+                  fontSize: "clamp(16px, 4vw, 20px)",
+                  fontWeight: 700,
+                  color: "var(--pencil-gray)",
+                  letterSpacing: 1,
+                }}
+              >
+                ĐIỂM
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+              {!onDouble ? null : renderRewardButton("X2 Điểm", onDouble)}
+              {renderSecondaryButton("Kết thúc", onEnd)}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
+

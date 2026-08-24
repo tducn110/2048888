@@ -243,17 +243,26 @@ export function useWinkIntegration(): WinkIntegration {
       setState((current) => stateWithLifecycle(current, { paused: true }));
     };
 
+    const handleResume = () => {
+      setHostPaused(false);
+      setState((current) => stateWithLifecycle(current, { paused: false }));
+    };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         handlePause();
+      } else {
+        handleResume();
       }
     };
 
     window.addEventListener("blur", handlePause);
+    window.addEventListener("focus", handleResume);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     cleanups.push(() => {
       window.removeEventListener("blur", handlePause);
+      window.removeEventListener("focus", handleResume);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     });
 
