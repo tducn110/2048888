@@ -44,8 +44,9 @@ export default function App() {
       void wink.refreshLeaderboard().catch(() => {
         // The Wink status/error surface owns the visible failure.
       });
+      void wink.fetchPersonalBest();
     }
-  }, [wink.mode, wink.phase, wink.refreshLeaderboard]);
+  }, [wink.mode, wink.phase, wink.refreshLeaderboard, wink.fetchPersonalBest]);
 
   // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
   const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
@@ -90,6 +91,7 @@ export default function App() {
         qualifies: true,
       });
       await wink.refreshLeaderboard();
+      await wink.fetchPersonalBest();
     } catch (err: unknown) {
       // CAPABILITY_DENIED is expected for anonymous — already handled by the
       // hook setting the error state. Log unexpected errors only.

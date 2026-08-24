@@ -45,7 +45,7 @@ export interface WinkCapabilities {
 export interface RedactedWinkState {
   phase: WinkPhase;
   gameId: string | null;
-  environment: 'dev' | 'prod' | null;
+  environment: 'dev' | 'prod' | 'local' | null;
   sessionId: string | null;
   identityType: 'anonymous' | 'user' | null;
   capabilities: WinkCapabilities;
@@ -67,6 +67,11 @@ export interface WinkLeaderboardEntry {
   displayName: string | null;
   avatarUrl: string | null;
   createdAt: string | null;
+}
+
+export interface WinkPersonalBest {
+  /** Best run của chính người gọi. Null = anonymous | guest | chưa có điểm. */
+  me: WinkLeaderboardEntry | null;
 }
 
 export interface WinkSubmitScoreResult {
@@ -94,7 +99,7 @@ export interface RedactedWinkDiagnostics {
   protocolVersion: number;
   phase: WinkPhase;
   gameId: string | null;
-  environment: 'dev' | 'prod' | null;
+  environment: 'dev' | 'prod' | 'local' | null;
   hasSession: boolean;
   capabilities: WinkCapabilities;
   lifecycle: {
@@ -118,6 +123,7 @@ export interface WinkGameClient {
   onResume(listener: () => void): () => void;
   onMute(listener: () => void): () => void;
   onUnmute(listener: () => void): () => void;
+  getPersonalBest(): Promise<WinkPersonalBest>;
   help(): RedactedWinkDiagnostics;
 }
 
@@ -135,6 +141,7 @@ export interface WinkIntegration {
   displayName: string | null;
   bestScore: number;
   refreshLeaderboard(): Promise<void>;
+  fetchPersonalBest(): Promise<void>;
   submitFinalScore(input: {
     roundId: string;
     score: number;
@@ -150,7 +157,7 @@ export interface WinkIntegration {
 export type RawWinkBridgeState = {
   phase: WinkPhase;
   gameId: string | null;
-  environment: 'dev' | 'prod' | null;
+  environment: 'dev' | 'prod' | 'local' | null;
   sessionId: string | null;
   identityType: 'anonymous' | 'user' | null;
   capabilities: WinkCapabilities;
@@ -180,5 +187,6 @@ export interface RawWinkBridge {
   onResume(listener: () => void): () => void;
   onMute(listener: () => void): () => void;
   onUnmute(listener: () => void): () => void;
+  getPersonalBest(): Promise<unknown>;
   help(): unknown;
 }

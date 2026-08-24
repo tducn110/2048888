@@ -15,6 +15,7 @@ import type {
   RedactedWinkDiagnostics,
   RedactedWinkState,
   WinkCapabilities,
+  WinkPersonalBest,
   WinkCompletionInput,
   WinkGameClient,
   WinkIntegrationErrorCode,
@@ -35,6 +36,7 @@ const BRIDGE_METHODS = [
   'getState',
   'getCapabilities',
   'getLeaderboard',
+  'getPersonalBest',
   'submitScore',
   'complete',
   'onPause',
@@ -224,7 +226,8 @@ function projectState(value: unknown): RedactedWinkState {
     !(
       value.environment === null ||
       value.environment === 'dev' ||
-      value.environment === 'prod'
+      value.environment === 'prod' ||
+      value.environment === 'local'
     ) ||
     !(value.sessionId === null || typeof value.sessionId === 'string') ||
     !(
@@ -357,6 +360,19 @@ function projectLeaderboardEntry(value: unknown): WinkLeaderboardEntry {
     displayName: value.displayName as string | null,
     avatarUrl: null,
     createdAt: value.createdAt,
+  });
+}
+
+function projectPersonalBest(value: unknown): WinkPersonalBest {
+  if (!hasExactKeys(value, ['me'])) {
+    throw new WinkGameClientError(
+      'API_NETWORK_ERROR',
+      'Personal best response is invalid',
+      true,
+    );
+  }
+  return Object.freeze({
+    me: value.me === null ? null : projectLeaderboardEntry(value.me),
   });
 }
 
@@ -618,6 +634,13 @@ export function createWinkGameClient(
         throw normalizeError(error);
       }
     },
+    async getPersonalBest() {
+      try {
+        return projectPersonalBest(await bridge.getPersonalBest());
+      } catch (error) {
+        throw normalizeError(error);
+      }
+    },
     submitScore,
     complete,
     onPause: (listener: () => void) =>
@@ -631,7 +654,7 @@ export function createWinkGameClient(
     help(): RedactedWinkDiagnostics {
       const state = projectState(bridge.getState());
       return Object.freeze({
-        bridgeVersion: '9.0.1',
+        bridgeVersion: '9.2.0',
         protocolVersion: 1,
         phase: state.phase,
         gameId: state.gameId,

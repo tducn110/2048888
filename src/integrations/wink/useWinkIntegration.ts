@@ -326,6 +326,24 @@ export function useWinkIntegration(): WinkIntegration {
     return nextError;
   }, []);
 
+
+  const fetchPersonalBest = useCallback(async () => {
+    if (offline) return;
+    if (!connection.client) return; // Silent return, handled elsewhere
+    try {
+      const { me } = await connection.client.getPersonalBest();
+      if (me) {
+        setPlayerEntry(me);
+        setDisplayName(me.displayName);
+        setBestScore((current) => Math.max(current, me.score));
+      }
+    } catch (value) {
+      // API_NETWORK_ERROR or CAPABILITY_DENIED can be ignored for personal best
+      // so it doesn't interrupt the game
+      console.warn('[Wink] fetchPersonalBest failed:', value);
+    }
+  }, [connection, offline]);
+
   const refreshLeaderboard = useCallback(async () => {
     if (offline) {
       setLeaderboard([]);
@@ -424,6 +442,7 @@ export function useWinkIntegration(): WinkIntegration {
     displayName,
     bestScore,
     refreshLeaderboard,
+    fetchPersonalBest,
     submitFinalScore,
     completeRound,
   };

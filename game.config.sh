@@ -32,7 +32,7 @@ ENVIRONMENT="prod"
 
 # ============================ DERIVED — DO NOT EDIT ==========================
 PROTOCOL_VERSION="1"
-BRIDGE_VERSION="9.0.1"
+BRIDGE_VERSION="9.2.0"
 REGISTRY="registry2.papagroup.net"
 NETWORK="traefik-public"
 NGINX_PORT="80"

@@ -66,6 +66,9 @@ function bridge(
       entries: [rawEntry()],
       total: 1,
     })),
+    getPersonalBest: vi.fn(async () => ({
+      me: null,
+    })),
     submitScore: vi.fn(async () => ({
       entry: rawEntry(),
       isNewBest: true,
