@@ -1,5 +1,5 @@
 {
-  "name": "@figma/my-make-file",
+  "name": "02-2048",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -16,7 +16,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "optimize:images": "python3 scripts/optimize_images.py public/assets public/assets-optimized-webp --quality 82",
-    "prebuild": "npm run verify:wink-bridge",
     "sync:wink-bridge": "node scripts/sync-wink-bridge.mjs",
     "verify:wink-bridge": "node scripts/verify-wink-bridge.mjs",
     "verify:wink-config": "node scripts/verify-game-config.mjs",
@@ -26,10 +25,13 @@
   },
   "dependencies": {
     "gsap": "^3.15.0",
+    "i18next": "^26.4.0",
+    "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "0.487.0",
     "pixi.js": "^8.19.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

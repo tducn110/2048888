@@ -51,3 +51,4 @@ out/
 
 # Wink deployment evidence (local only)
 artifacts/
+patch_*.cjs

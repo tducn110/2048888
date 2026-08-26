@@ -16,11 +16,11 @@ const AUDIO_VOLUME = {
 } as const;
 
 const SFX_SOURCES = {
-  move: { ogg: "/assets/audio/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
-  merge: { ogg: "/assets/audio/switch7.ogg", mp3: "/assets/audio-optimized/switch7.mp3" },
-  win: { ogg: "/assets/audio/switch33.ogg", mp3: "/assets/audio-optimized/switch33.mp3" },
-  lose: { ogg: "/assets/audio/switch24.ogg", mp3: "/assets/audio-optimized/switch24.mp3" },
-  tap: { ogg: "/assets/audio/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
+  move: { ogg: "/assets/audio-optimized/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
+  merge: { ogg: "/assets/audio-optimized/switch7.ogg", mp3: "/assets/audio-optimized/switch7.mp3" },
+  win: { ogg: "/assets/audio-optimized/switch33.ogg", mp3: "/assets/audio-optimized/switch33.mp3" },
+  lose: { ogg: "/assets/audio-optimized/switch24.ogg", mp3: "/assets/audio-optimized/switch24.mp3" },
+  tap: { ogg: "/assets/audio-optimized/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
 } as const;
 
 export type GameSfx = keyof typeof SFX_SOURCES;

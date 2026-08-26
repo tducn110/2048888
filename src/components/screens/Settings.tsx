@@ -1,6 +1,7 @@
 import Button from "@/components/ui/Button";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
-import { Music, Settings as SettingsIcon, Volume2, VolumeX } from "lucide-react";
+import { Music, Settings as SettingsIcon, Volume2, VolumeX, Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface SettingsProps {
   musicEnabled: boolean;
@@ -11,6 +12,13 @@ interface SettingsProps {
 }
 
 export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSfxChange, onBack }: SettingsProps) {
+  const { t, i18n } = useTranslation();
+
+  const handleLanguageChange = () => {
+    const newLang = i18n.language === "vi" ? "en" : "vi";
+    i18n.changeLanguage(newLang);
+  };
+
   return (
     <div
       style={{
@@ -41,7 +49,7 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
             lineHeight: 1.2,
           }}
         >
-          Cài Đặt
+          {t('settings.title')}
         </h1>
       </div>
 
@@ -57,14 +65,14 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
         }}>
           <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8, minWidth: 0, lineHeight: 1.25 }}>
             {musicEnabled ? <Music size={20} /> : <VolumeX size={20} />}
-            Nhạc nền
+            {t('settings.music')}
           </div>
           <Button 
             variant={musicEnabled ? "primary" : "secondary"} 
             size="sm" 
             onClick={() => onMusicChange(!musicEnabled)}
           >
-            {musicEnabled ? "Bật" : "Tắt"}
+            {musicEnabled ? t('settings.on') : t('settings.off')}
           </Button>
         </div>
 
@@ -79,14 +87,36 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
         }}>
           <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8, minWidth: 0, lineHeight: 1.25 }}>
             {sfxEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-            Hiệu ứng âm thanh
+            {t('settings.sfx')}
           </div>
           <Button 
             variant={sfxEnabled ? "primary" : "secondary"} 
             size="sm" 
             onClick={() => onSfxChange(!sfxEnabled)}
           >
-            {sfxEnabled ? "Bật" : "Tắt"}
+            {sfxEnabled ? t('settings.on') : t('settings.off')}
+          </Button>
+        </div>
+
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          padding: "16px",
+          background: "rgba(138,125,101,0.08)",
+          borderRadius: 16
+        }}>
+          <div style={{ fontWeight: 600, color: "var(--ink-dark)", display: "flex", alignItems: "center", gap: 8, minWidth: 0, lineHeight: 1.25 }}>
+            <Globe size={20} />
+            {t('settings.language')}
+          </div>
+          <Button 
+            variant="primary"
+            size="sm" 
+            onClick={handleLanguageChange}
+          >
+            {i18n.language === 'vi' ? t('settings.vi') : t('settings.en')}
           </Button>
         </div>
       </div>

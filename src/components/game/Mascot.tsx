@@ -52,6 +52,7 @@ export default function Mascot({ width = 120, height = 120, themeId = 1 }: Masco
           filter: "drop-shadow(0 5px 4px rgba(40,27,16,0.18))",
           transform: `translateY(${MASCOT_OFFSET_Y[mascot]}) scale(${MASCOT_SCALE[mascot]})`,
           transformOrigin: "center bottom",
+          willChange: "transform",
         }}
       />
     </div>

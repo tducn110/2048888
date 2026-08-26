@@ -1,4 +1,6 @@
-export default function CountrysideBackdrop({ themeId = 1 }: { themeId?: number }) {
+import React from 'react';
+
+function CountrysideBackdrop({ themeId = 1 }: { themeId?: number }) {
   // Define themes
   const themes = {
     1: { // Peanut
@@ -270,3 +272,4 @@ function GrassTuft({ x, y }: { x: number; y: number }) {
     </g>
   );
 }
+export default React.memo(CountrysideBackdrop);

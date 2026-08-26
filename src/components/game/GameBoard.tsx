@@ -14,16 +14,20 @@ export default function GameBoard({ tiles, background }: GameBoardProps) {
 
   // Handle ResizeObserver
   useEffect(() => {
-    const update = () => {
+    const update = (newSize?: number) => {
       if (containerRef.current) {
-        const newSize = containerRef.current.offsetWidth;
+        const size = newSize ?? containerRef.current.offsetWidth;
         if (rendererRef.current) {
-          rendererRef.current.resize(newSize);
+          rendererRef.current.resize(size);
         }
       }
     };
-    update();
-    const ro = new ResizeObserver(update);
+    update(); // Initial read is fine
+    const ro = new ResizeObserver((entries) => {
+      if (entries.length > 0) {
+        update(entries[0].contentRect.width);
+      }
+    });
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);

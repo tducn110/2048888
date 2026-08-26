@@ -1,5 +1,6 @@
 import Button from "@/components/ui/Button";
 import type { GameTheme } from "./gameThemes";
+import { useTranslation } from "react-i18next";
 
 interface GameHUDProps {
   score: number;
@@ -10,11 +11,12 @@ interface GameHUDProps {
 }
 
 export default function GameHUD({ score, bestScore, scoreDelta, onReset, theme }: GameHUDProps) {
+  const { t } = useTranslation();
   return (
     <GameControls>
       <div className="game-score-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
-        <ScoreCard label="Điểm" value={score} delta={scoreDelta} theme={theme} />
-        <ScoreCard label="Tốt nhất" value={bestScore} theme={theme} />
+        <ScoreCard label={t('game.hudScore')} value={score} delta={scoreDelta} theme={theme} />
+        <ScoreCard label={t('game.hudBest')} value={bestScore} theme={theme} />
       </div>
       <div
         className="game-reset-row"
@@ -28,8 +30,8 @@ export default function GameHUD({ score, bestScore, scoreDelta, onReset, theme }
           zIndex: 1,
         }}
       >
-        <InstructionCard theme={theme} />
-        <NewGameButton onReset={onReset} theme={theme} />
+        <InstructionCard theme={theme} t={t} />
+        <NewGameButton onReset={onReset} theme={theme} t={t} />
       </div>
     </GameControls>
   );
@@ -51,7 +53,7 @@ function GameControls({ children }: { children: React.ReactNode }) {
   );
 }
 
-function InstructionCard({ theme }: { theme: GameTheme }) {
+function InstructionCard({ theme, t }: { theme: GameTheme, t: any }) {
   return (
     <div
       className="game-instruction-card"
@@ -75,19 +77,19 @@ function InstructionCard({ theme }: { theme: GameTheme }) {
         boxShadow: "0 2px 0 rgba(48,31,18,0.08)",
       }}
     >
-      Ghép số tới 2048!
+      {t('game.hudInstruction')}
     </div>
   );
 }
 
-function NewGameButton({ onReset, theme }: { onReset: () => void; theme: GameTheme }) {
+function NewGameButton({ onReset, theme, t }: { onReset: () => void; theme: GameTheme, t: any }) {
   return (
     <Button
       className="game-reset-button"
       size="sm"
       variant="primary"
       onClick={onReset}
-      aria-label="Gỡ lại"
+      aria-label={t('game.hudRestart')}
       style={{
         minWidth: 0,
         minHeight: "clamp(34px, 7dvh, 44px)",
@@ -101,7 +103,7 @@ function NewGameButton({ onReset, theme }: { onReset: () => void; theme: GameThe
         boxShadow: theme.ctaShadow,
       }}
     >
-      <span>Gỡ lại</span>
+      <span>{t('game.hudRestart')}</span>
     </Button>
   );
 }

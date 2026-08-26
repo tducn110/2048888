@@ -3,6 +3,7 @@ import { getTileConfig } from "@/constants/tileConfig";
 import { BADGE_COLORS, getRank, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
 import type { WinkLeaderboardEntry } from "@/integrations/wink/types";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
+import { useTranslation } from "react-i18next";
 
 interface DashboardProps {
   bestScore: number;
@@ -14,9 +15,10 @@ interface DashboardProps {
 function buildRemoteModel(
   entries: readonly WinkLeaderboardEntry[],
   player: WinkLeaderboardEntry | null,
+  t: (key: string) => string
 ) {
   const ranked = entries.map((entry) => ({
-    name: entry.displayName ?? (entry.isAnonymous ? "Người chơi ẩn danh" : "Người chơi"),
+    name: entry.displayName ?? (entry.isAnonymous ? t('dashboard.anonymous') : t('dashboard.player')),
     score: entry.score,
     maxTile: 0,
     isLocal: player?.id === entry.id,
@@ -24,7 +26,7 @@ function buildRemoteModel(
   }));
   const playerRow = player
     ? {
-        name: player.displayName ?? (player.isAnonymous ? "Người chơi ẩn danh" : "Người chơi"),
+        name: player.displayName ?? (player.isAnonymous ? t('dashboard.anonymous') : t('dashboard.player')),
         score: player.score,
         maxTile: 0,
         isLocal: true,
@@ -40,7 +42,8 @@ export default function Dashboard({
   player,
   onPlay,
 }: DashboardProps) {
-  const { topEntries, currentPlayer } = buildRemoteModel(leaderboard, player);
+  const { t } = useTranslation();
+  const { topEntries, currentPlayer } = buildRemoteModel(leaderboard, player, t);
   const playerInTopTen = topEntries.find((entry) => entry.isLocal) ?? null;
   const playerRow = playerInTopTen ?? currentPlayer;
 
@@ -74,7 +77,7 @@ export default function Dashboard({
         }}
       >
         <div style={{ fontSize: 12, color: "var(--pencil-gray)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          Kỷ Lục Của Bạn
+          {t('dashboard.yourRecord')}
         </div>
         <div style={{ fontSize: 32, lineHeight: 1.05, fontWeight: 800, color: "var(--orange-cta-edge)", fontFamily: "'Be Vietnam Pro', sans-serif" }}>
           {bestScore.toLocaleString("vi-VN")}
@@ -86,22 +89,22 @@ export default function Dashboard({
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Trophy size={19} color="var(--orange-cta-edge)" />
             <h2 style={{ margin: 0, fontSize: 16, lineHeight: 1.2, color: "var(--ink-dark)", fontWeight: 800 }}>
-              Ranking 1-10
+              {t('dashboard.ranking')}
             </h2>
           </div>
           <span style={{ fontSize: 10, fontWeight: 800, color: "var(--pencil-gray)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Top điểm
+            {t('dashboard.topScore')}
           </span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, overflowY: "auto", paddingRight: 4 }}>
           {topEntries.length > 0 ? (
             topEntries.map((entry) => (
-              <RankingRow key={`${entry.name}-${entry.rank}`} entry={entry} highlight={entry.isLocal} />
+              <RankingRow key={`${entry.name}-${entry.rank}`} entry={entry} highlight={entry.isLocal} t={t} />
             ))
           ) : (
             <div style={{ padding: "18px 12px", textAlign: "center", color: "var(--pencil-gray)", fontSize: 13, fontWeight: 700 }}>
-              Chưa có thành tích. Hãy chơi để thiết lập kỷ lục đầu tiên.
+              {t('dashboard.noRecords')}
             </div>
           )}
         </div>
@@ -123,9 +126,9 @@ export default function Dashboard({
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 800, color: "var(--orange-cta-edge)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            Bảng xếp hạng của bạn
+            {t('dashboard.yourRanking')}
           </div>
-          <RankingRow entry={playerRow} highlight />
+          <RankingRow entry={playerRow} highlight t={t} />
         </section>
       )}
 
@@ -140,9 +143,11 @@ export default function Dashboard({
 function RankingRow({
   entry,
   highlight = false,
+  t
 }: {
   entry: RankedLeaderboardEntry;
   highlight?: boolean;
+  t: (key: string) => string;
 }) {
   const isTopThree = entry.rank != null && entry.rank <= 3;
   const medal = isTopThree ? BADGE_COLORS[entry.rank! - 1] : null;
@@ -219,7 +224,7 @@ function RankingRow({
       </div>
 
       <div style={{ color: "var(--orange-cta-edge)", fontSize: 13, fontWeight: 800, textAlign: "right" }}>
-        {entry.score > 0 ? entry.score.toLocaleString("vi-VN") : "Chưa có"}
+        {entry.score > 0 ? entry.score.toLocaleString("vi-VN") : t('dashboard.none')}
       </div>
     </div>
   );

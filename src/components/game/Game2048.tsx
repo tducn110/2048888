@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { use2048Game } from "@/hooks/use2048Game";
 import GameBoard from "./GameBoard";
 import GameHeader from "./GameHeader";
@@ -10,7 +11,6 @@ import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
 import { showRewardedVideo } from "@/integrations/ads/googleH5Ads";
-
 interface Game2048Props {
   bestScore: number;
   onGameEnd: (score: number, maxTile: number, playTimeMs: number, doubled: boolean) => void;
@@ -25,11 +25,10 @@ interface Game2048Props {
   onScoreDoubled?: (newScore: number) => void;
   onRoundStart?: () => void;
 }
-
 export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, onScoreDoubled, onRoundStart }: Game2048Props) {
+  const { t } = useTranslation();
   const { tiles, score, scoreDelta, status, hasReached2048, moveCount, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
-
   // Record game result exactly once per terminal status transition
   const recordedRef = useRef(false);
   const previousMoveCountRef = useRef(0);
@@ -38,12 +37,10 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   // Track play time for Wink score submission
   const roundStartMsRef = useRef<number | null>(null);
   const roundStartedRef = useRef(false);
-  
   const [showContinue, setShowContinue] = useState(true);
   const [isScoreDoubled, setIsScoreDoubled] = useState(false);
   const [pendingDoubleScore, setPendingDoubleScore] = useState(0);
   const [adPending, setAdPending] = useState(false);
-
   useEffect(() => {
     if (status === "lost" && !showContinue && !recordedRef.current) {
       recordedRef.current = true;
@@ -52,21 +49,18 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       onGameEnd(finalScore, getMaxTile(tiles), playTimeMs, isScoreDoubled);
     }
   }, [status, showContinue, score, pendingDoubleScore, isScoreDoubled, tiles, onGameEnd]);
-
   useEffect(() => {
     if (status !== previousStatusRef.current) {
       if (status === "lost") playSfx("lose");
       previousStatusRef.current = status;
     }
   }, [playSfx, status]);
-
   useEffect(() => {
     if (!previousMilestoneRef.current && hasReached2048 && status !== "lost") {
       playSfx("win");
     }
     previousMilestoneRef.current = hasReached2048;
   }, [hasReached2048, playSfx, status]);
-
   useEffect(() => {
     if (previousMoveCountRef.current === 0 && moveCount === 1) {
       // First actual move — start the Wink round (covers keyboard input path)
@@ -79,20 +73,17 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       playSfx(scoreDelta > 0 ? "merge" : "move");
       return;
     }
-
     if (moveCount > previousMoveCountRef.current) {
       playSfx(scoreDelta > 0 ? "merge" : "move");
     }
     previousMoveCountRef.current = moveCount;
   }, [moveCount, playSfx, scoreDelta, onRoundStart]);
-
   const handleReset = () => {
     // If resetting mid-game, explicitly terminate and complete the round
     if (roundStartedRef.current && status === "playing") {
       const playTimeMs = roundStartMsRef.current ? Date.now() - roundStartMsRef.current : 0;
       onGameEnd(score, getMaxTile(tiles), playTimeMs, false);
     }
-    
     recordedRef.current = false;
     roundStartedRef.current = false;
     roundStartMsRef.current = null;
@@ -102,7 +93,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     setBgId(getNextGameThemeId(bgId));
     reset();
   };
-
   const handleRevive = async () => {
     if (adPending) return;
     setAdPending(true);
@@ -112,10 +102,8 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     if (!rewarded) return;
     revive();
   };
-
   const gameCardRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-
   const handleSwipe = (dir: Direction) => {
     if (inputEnabled) {
       // Fire onRoundStart on first move
@@ -127,23 +115,19 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       move(dir);
     }
   };
-
   const handleSwipeRef = useRef(handleSwipe);
   useEffect(() => {
     handleSwipeRef.current = handleSwipe;
   });
-
   useEffect(() => {
     if (!inputEnabled || status !== "playing") {
       return;
     }
-
     const targetElement: HTMLElement =
       (gameCardRef.current?.closest(".app-main--game") as HTMLElement | null) ??
       (gameCardRef.current?.closest(".game-screen-slot") as HTMLElement | null) ??
       gameCardRef.current ??
       document.body;
-
     const isInteractive = (target: EventTarget | null): boolean => {
       if (!(target instanceof Element)) return false;
       return Boolean(
@@ -152,7 +136,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         )
       );
     };
-
     const handleStart = (clientX: number, clientY: number, target: EventTarget | null) => {
       if (isInteractive(target)) {
         touchStartRef.current = null;
@@ -160,47 +143,37 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       }
       touchStartRef.current = { x: clientX, y: clientY };
     };
-
     const handleMove = (e: Event) => {
       if (touchStartRef.current && e.cancelable) {
         e.preventDefault();
       }
     };
-
     const handleEnd = (clientX: number, clientY: number) => {
       if (!touchStartRef.current) return;
       const start = touchStartRef.current;
       touchStartRef.current = null;
-
       const dx = clientX - start.x;
       const dy = clientY - start.y;
-
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
       const THRESHOLD = 24;
-
       if (Math.max(absDx, absDy) < THRESHOLD) return;
-
       if (absDx > absDy) {
         handleSwipeRef.current(dx > 0 ? "right" : "left");
       } else {
         handleSwipeRef.current(dy > 0 ? "down" : "up");
       }
     };
-
     const handleCancel = () => {
       touchStartRef.current = null;
     };
-
     let wheelCooldownTimer: ReturnType<typeof setTimeout> | null = null;
     let wheelAccumResetTimer: ReturnType<typeof setTimeout> | null = null;
     let wheelAccumX = 0;
     let wheelAccumY = 0;
-    
     const onWheel = (e: WheelEvent) => {
       if (isInteractive(e.target)) return;
       if (e.cancelable) e.preventDefault();
-
       if (wheelCooldownTimer) {
         clearTimeout(wheelCooldownTimer);
         wheelCooldownTimer = setTimeout(() => {
@@ -208,78 +181,60 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         }, 200);
         return;
       }
-
       if (wheelAccumResetTimer) clearTimeout(wheelAccumResetTimer);
       wheelAccumResetTimer = setTimeout(() => {
         wheelAccumX = 0;
         wheelAccumY = 0;
       }, 100);
-
       wheelAccumX += e.deltaX;
       wheelAccumY += e.deltaY;
-
       const absX = Math.abs(wheelAccumX);
       const absY = Math.abs(wheelAccumY);
       const WHEEL_THRESHOLD = 40;
-
       if (Math.max(absX, absY) >= WHEEL_THRESHOLD) {
         if (absX > absY) {
           handleSwipeRef.current(wheelAccumX > 0 ? "left" : "right");
         } else {
           handleSwipeRef.current(wheelAccumY > 0 ? "up" : "down");
         }
-        
         wheelAccumX = 0;
         wheelAccumY = 0;
-
         wheelCooldownTimer = setTimeout(() => {
           wheelCooldownTimer = null;
         }, 200);
       }
     };
-
     const onTouchStart = (e: TouchEvent) => handleStart(e.touches[0]?.clientX || 0, e.touches[0]?.clientY || 0, e.target);
     const onTouchMove = (e: TouchEvent) => handleMove(e);
     const onTouchEnd = (e: TouchEvent) => handleEnd(e.changedTouches[0]?.clientX || 0, e.changedTouches[0]?.clientY || 0);
-
     const onMouseDown = (e: MouseEvent) => handleStart(e.clientX, e.clientY, e.target);
     const onMouseMove = (e: MouseEvent) => handleMove(e);
     const onMouseUp = (e: MouseEvent) => handleEnd(e.clientX, e.clientY);
-
     targetElement.addEventListener("touchstart", onTouchStart, { passive: true });
     targetElement.addEventListener("touchmove", onTouchMove, { passive: false });
     targetElement.addEventListener("touchend", onTouchEnd, { passive: true });
     targetElement.addEventListener("touchcancel", handleCancel, { passive: true });
-
     targetElement.addEventListener("mousedown", onMouseDown, { passive: true });
     targetElement.addEventListener("mousemove", onMouseMove, { passive: false });
     targetElement.addEventListener("mouseup", onMouseUp, { passive: true });
     targetElement.addEventListener("mouseleave", handleCancel, { passive: true });
-    
     targetElement.addEventListener("wheel", onWheel as EventListener, { passive: false });
-    
     window.addEventListener("blur", handleCancel, { passive: true });
-
     return () => {
       if (wheelCooldownTimer) clearTimeout(wheelCooldownTimer);
       if (wheelAccumResetTimer) clearTimeout(wheelAccumResetTimer);
-      
       targetElement.removeEventListener("touchstart", onTouchStart);
       targetElement.removeEventListener("touchmove", onTouchMove);
       targetElement.removeEventListener("touchend", onTouchEnd);
       targetElement.removeEventListener("touchcancel", handleCancel);
-
       targetElement.removeEventListener("mousedown", onMouseDown);
       targetElement.removeEventListener("mousemove", onMouseMove);
       targetElement.removeEventListener("mouseup", onMouseUp);
       targetElement.removeEventListener("mouseleave", handleCancel);
-      
       targetElement.removeEventListener("wheel", onWheel as EventListener);
-      
       window.removeEventListener("blur", handleCancel);
     };
   }, [inputEnabled, status]);
-
   return (
     <div
       ref={gameCardRef}
@@ -332,7 +287,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         >
           2048
         </h1>
-
         <div
           className="game-card-actions"
           style={{
@@ -343,14 +297,14 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
           }}
         >
           <IconButton
-            ariaLabel="Mở bảng điểm"
+            ariaLabel={t("dashboard.leaderboard")}
             onClick={onDashboard}
             theme={theme}
           >
             <ChartColumnBig size={21} />
           </IconButton>
           <IconButton
-            ariaLabel="Cài đặt"
+            ariaLabel={t("settings.title")}
             onClick={onSettings}
             theme={theme}
           >
@@ -358,10 +312,8 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
           </IconButton>
         </div>
       </div>
-
       <div className="game-header-row" style={{ display: "grid", gridTemplateColumns: "clamp(64px, min(28vw, 18dvh), 118px) minmax(0, 1fr)", alignItems: "end", width: "100%", columnGap: "clamp(6px, 2.4vw, 9px)", boxSizing: "border-box" }}>
         <GameHeader bgId={bgId} />
-
         <div style={{ width: "100%", paddingBottom: 2 }}>
           <GameHUD
             score={score}
@@ -372,7 +324,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
           />
         </div>
       </div>
-
       <div
         className="game-board-frame"
         style={{
@@ -391,7 +342,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         {/* Board */}
         <div className="game-board-shell" style={{ position: "relative" }}>
           <GameBoard tiles={tiles} onSwipe={handleSwipe} background={theme.boardBg} />
-
           {/* Audio Unlock Overlay */}
           {audioStatus !== "ready" && (
             <div
@@ -429,19 +379,18 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
                     animation: "mascotBreathe 2s infinite",
                   }}
                 >
-                  Chơi ngay
+                  {t("game.playNow")}
                 </Button>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "var(--wood-dark)" }}>
                   <Loader2 size={36} className="spinner" style={{ animation: "spin 1s linear infinite" }} />
                   <div style={{ fontWeight: 600, fontSize: 14 }}>
-                    Đang tải âm thanh...
+                    {t("game.loadingAudio")}
                   </div>
                 </div>
               )}
             </div>
           )}
-
           {/* Overlay: LOST (Continue / Final Results) */}
           {status === "lost" && (
             <GameDecisionOverlay
@@ -449,6 +398,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
               score={score}
               adPending={adPending}
               theme={theme}
+              t={t}
               onContinue={handleRevive}
               onDecline={() => setShowContinue(false)}
               onDouble={
@@ -473,13 +423,11 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
               onEnd={handleReset}
             />
           )}
-
         </div>
       </div>
     </div>
   );
 }
-
 function IconButton({
   ariaLabel,
   onClick,
@@ -515,8 +463,7 @@ function IconButton({
     </button>
   );
 }
-
-function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onEnd, theme, adPending }: any) {
+function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onEnd, theme, adPending, t }: any) {
   const cardStyle = {
     width: "100%",
     maxWidth: 320,
@@ -532,9 +479,7 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
     gap: "clamp(20px, 5vw, 28px)",
     boxSizing: "border-box",
   } as const;
-
   const textColor = "var(--wood-dark)";
-  
   const renderRewardButton = (label: string, onClick: () => void) => (
     <Button
       onClick={onClick}
@@ -555,7 +500,6 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
       {label}
     </Button>
   );
-
   const renderSecondaryButton = (label: string, onClick: () => void) => (
     <Button
       onClick={onClick}
@@ -575,7 +519,6 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
       {label}
     </Button>
   );
-
   return (
     <div
       style={{
@@ -604,12 +547,11 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
                 textAlign: "center",
               }}
             >
-              Thua rồi!
+              {t('game.youLost')}
             </div>
-            
             <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-              {renderRewardButton("Tiếp tục chơi", onContinue)}
-              {renderSecondaryButton("Không", onDecline)}
+              {renderRewardButton(t('game.continuePlaying'), onContinue)}
+              {renderSecondaryButton(t('game.no'), onDecline)}
             </div>
           </>
         ) : (
@@ -635,13 +577,12 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
                   letterSpacing: 1,
                 }}
               >
-                ĐIỂM
+                {t('game.score')}
               </div>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-              {!onDouble ? null : renderRewardButton("X2 Điểm", onDouble)}
-              {renderSecondaryButton("Kết thúc", onEnd)}
+              {!onDouble ? null : renderRewardButton(t('game.x2Score'), onDouble)}
+              {renderSecondaryButton(t('game.end'), onEnd)}
             </div>
           </>
         )}
@@ -649,4 +590,3 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
     </div>
   );
 }
-
