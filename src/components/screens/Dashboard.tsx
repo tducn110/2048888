@@ -1,7 +1,7 @@
 import { Trophy } from "lucide-react";
 import { getTileConfig } from "@/constants/tileConfig";
 import { BADGE_COLORS, getRank, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
-import type { WinkLeaderboardEntry } from "@/integrations/wink/types";
+import type { WinkLeaderboardEntry } from "@/wink";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
 
 interface DashboardProps {

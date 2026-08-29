@@ -4,17 +4,9 @@ import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
 import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
-import { useWinkIntegration } from "@/integrations/wink/useWinkIntegration";
+import { useWink } from "@/wink";
 
 type Screen = "dashboard" | "game" | "settings";
-
-// UUID v4 — only used locally to correlate round events until the bridge
-// starts managing roundId ownership from the new full typed client.
-function newRoundId(): string {
-  const cr = globalThis.crypto;
-  if (cr && typeof cr.randomUUID === "function") return cr.randomUUID();
-  return `round-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
-}
 
 export default function App() {
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
@@ -24,8 +16,7 @@ export default function App() {
   const { playSfx, audioStatus, unlockAudio, setParentMuted, setHostPaused, startBgmFromUserGesture } = useGameAudio(musicEnabled, sfxEnabled);
   const keepGameMounted = screen === "game" || screen === "settings";
 
-  // Wink bridge integration — full typed WinkIntegration
-  const wink = useWinkIntegration();
+  const wink = useWink();
 
   // Apply parent mute to audio engine without touching user prefs
   useEffect(() => {
@@ -36,79 +27,27 @@ export default function App() {
     setHostPaused(wink.hostPaused);
   }, [wink.hostPaused, setHostPaused]);
 
-  useEffect(() => {
-    if (
-      wink.mode === "wink" &&
-      (wink.phase === "ready_anonymous" || wink.phase === "ready_authenticated")
-    ) {
-      void wink.refreshLeaderboard().catch(() => {
-        // The Wink status/error surface owns the visible failure.
-      });
-    }
-  }, [wink.mode, wink.phase, wink.refreshLeaderboard]);
-
   // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
   const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
 
   /**
-   * Called at first tile move — opens a new semantic round.
-   * The roundId is kept alive through any revive step.
+   * Called at first tile move. The round id and its clock belong to the SDK
+   * now — calling this twice abandons the first round rather than reporting a
+   * bogus duration for it, so the revive step needs no guard here.
    */
-  const [activeRoundId, setActiveRoundId] = useState<string | null>(null);
-  const [roundStartMs, setRoundStartMs] = useState<number>(0);
-
   const onRoundStart = () => {
-    if (activeRoundId) return; // already active
-    const id = newRoundId();
-    setActiveRoundId(id);
-    setRoundStartMs(Date.now());
+    window.Wink.gameplayStart();
   };
 
-  /**
-   * Called when the player confirms final game-over (declines revive or resets).
-   * Submits score then completes the round — both are independent operations.
-   */
+  /** Called when the player confirms final game-over. */
   const onGameEnd = async (
     score: number,
     _maxTile: number,
     playTimeMs: number,
     _doubled: boolean,
   ) => {
-    const roundId = activeRoundId;
-    setActiveRoundId(null);
-
-    if (!roundId) return;
-
-    const playTimeSec = Math.round(playTimeMs / 1000);
-
-    // Submit score first (independent from completion)
-    try {
-      await wink.submitFinalScore({
-        roundId,
-        score,
-        playTimeSec,
-        qualifies: true,
-      });
-      await wink.refreshLeaderboard();
-    } catch (err: unknown) {
-      // CAPABILITY_DENIED is expected for anonymous — already handled by the
-      // hook setting the error state. Log unexpected errors only.
-      const code = (err as { code?: string })?.code;
-      if (code !== "CAPABILITY_DENIED") {
-        console.error("[Wink] submitFinalScore failed", err);
-      }
-    }
-
-    // Complete the round independently
-    try {
-      await wink.completeRound({
-        roundId,
-        playDurationMs: Math.max(0, playTimeMs ?? Date.now() - roundStartMs),
-      });
-    } catch (err: unknown) {
-      console.error("[Wink] completeRound failed", err);
-    }
-
+    window.Wink.gameplayStop();
+    await wink.submitScore(score, Math.round(playTimeMs / 1000));
   };
 
   return (
