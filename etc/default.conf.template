@@ -43,8 +43,11 @@ server {
         try_files $uri =404;
     }
 
-    location ~* \.(?:css|gif|ico|jpeg|jpg|js|png|svg|wasm|woff2?)$ {
-        expires 1y;
+    location ~* \.(?:css|gif|ico|jpeg|jpg|js|png|svg|wasm|woff2?|webp|mp3|ogg)$ {
+        expires 1d;
+        # Public filenames are not content-hashed; allow caching but require
+        # periodic revalidation so updated audio/background bytes are visible.
+        add_header Cache-Control "public, max-age=86400, must-revalidate";
         try_files $uri =404;
     }
 

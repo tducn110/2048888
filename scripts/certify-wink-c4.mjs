@@ -8,6 +8,12 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { verifyWinkBridge } from "./verify-wink-bridge.mjs";
 import {
+  BRIDGE_SHA256,
+  BRIDGE_SOURCE,
+  BRIDGE_VERSION,
+  PROTOCOL_VERSION,
+} from "./wink-contract.mjs";
+import {
   createR1FixtureServer,
   createStaticDistServer,
 } from "./c4/servers.mjs";
@@ -17,14 +23,11 @@ const ROOT = path.resolve(
   "..",
 );
 const DIST_DIR = path.join(ROOT, "dist");
-const GAME_ID = "11111111-1111-4111-8111-111111111111";
+const GAME_ID = "b85fd50c-b3eb-4f4a-93eb-3101994e88e9";
 const GAME_ORIGIN = "http://127.0.0.1:5173";
 const HARNESS_ORIGIN = "http://127.0.0.1:8787";
-const CERTIFIED_COMMIT =
-  "fa76cdb800377579bb3459164afb92f0bbace379";
-const CERTIFIED_SHA256 =
-  "089b2d6c2261a7b285fa8acf5ff599e6d2aba9c1366f9def4ae1b1f9fefcfbda";
-const DETERMINISTIC_GAME_SEED = 82_826;
+const CERTIFIED_COMMIT = BRIDGE_SOURCE.commit;
+const CERTIFIED_SHA256 = BRIDGE_SHA256;
 const DEFAULT_R2_TEMPLATE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../../../wink/.worktrees/codex/minigame-runtime-pilot/game-template",
@@ -131,32 +134,6 @@ async function waitForBridgePhase(frame, phase) {
   );
 }
 
-async function waitForDeterministicGameSeed(frame, expectedCount) {
-  const seeds = await waitUntil(
-    () =>
-      frame.evaluate(
-        ({ expectedCount, expectedSeed }) => {
-          const values = window.__C4_GAME_SEEDS__ || [];
-          return values.length >= expectedCount &&
-            values.slice(0, expectedCount).every(
-              (value) => value === expectedSeed,
-            )
-            ? values
-            : null;
-        },
-        {
-          expectedCount,
-          expectedSeed: DETERMINISTIC_GAME_SEED,
-        },
-      ),
-    "Fruit game did not consume the deterministic C4 seed",
-  );
-  invariant(
-    seeds.length === expectedCount,
-    "Fruit game consumed an unexpected number of round seeds",
-  );
-}
-
 async function waitForHero(frame, label) {
   const page = frame.page();
   const currentFrame = () =>
@@ -166,7 +143,7 @@ async function waitForHero(frame, label) {
     frame;
   const target = currentFrame();
   try {
-    await target.locator(".hero-play-button").waitFor({
+    await target.locator(".game-title").waitFor({
       state: "visible",
       timeout: 20_000,
     });
@@ -208,7 +185,7 @@ async function exerciseLeaderboard({
       ? "anonymousLeaderboardReads"
       : "authenticatedLeaderboardReads";
   const before = fixture.getEvidence()[field];
-  await frame.locator(".hero-leaderboard-button").click();
+  await frame.locator('[aria-label="Bảng xếp hạng"]').click();
   try {
     await waitUntil(
       () => fixture.getEvidence()[field] >= before + 1,
@@ -240,13 +217,12 @@ async function verifyLifecycle({ frame, page }) {
   });
   await settings.click();
   await frame
-    .getByRole("button", {
-      name: "Tắt hiệu ứng âm thanh",
-      exact: true,
-    })
+    .getByText("Hiệu ứng âm thanh", { exact: true })
+    .locator("..")
+    .getByRole("button")
     .click();
   const userPreference = await waitForAudioGains(frame, [1, 0]);
-  await settings.click();
+  await frame.getByRole("button", { name: "← Quay lại", exact: true }).click();
 
   await page.locator("#pause-game").click();
   await frame.waitForFunction(
@@ -300,44 +276,26 @@ async function verifyLifecycle({ frame, page }) {
   };
 }
 
-async function sliceUntilGameOver({ frame, page }) {
-  const canvas = frame.locator("canvas").last();
-  const box = await canvas.boundingBox();
-  invariant(box, "Fruit game canvas has no browser bounds");
-
-  const marginX = Math.max(8, box.width * 0.03);
-  const marginY = Math.max(8, box.height * 0.04);
-  await page.mouse.move(box.x + marginX, box.y + marginY);
-  await page.mouse.down();
-  try {
-    const deadline = Date.now() + 30_000;
-    let index = 0;
-    while (Date.now() < deadline) {
-      if (
-        await frame
-          .getByText("Tiếp tục?", { exact: true })
-          .isVisible()
-          .catch(() => false)
-      ) {
-        return;
-      }
-      const row = index % 11;
-      const x =
-        index % 2 === 0
-          ? box.x + box.width - marginX
-          : box.x + marginX;
-      const y =
-        box.y +
-        marginY +
-        (row / 10) * (box.height - marginY * 2);
-      await page.mouse.move(x, y, { steps: 2 });
-      await new Promise((resolve) => setTimeout(resolve, 22));
-      index += 1;
+async function playUntilGameOver({ frame, page }) {
+  const board = frame.locator(".game-board-shell");
+  await board.click();
+  const directions = ["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"];
+  const deadline = Date.now() + 30_000;
+  let index = 0;
+  while (Date.now() < deadline) {
+    if (
+      await frame
+        .getByText("Thua rồi!", { exact: true })
+        .isVisible()
+        .catch(() => false)
+    ) {
+      return;
     }
-  } finally {
-    await page.mouse.up();
+    await page.keyboard.press(directions[index % directions.length]);
+    await new Promise((resolve) => setTimeout(resolve, 18));
+    index += 1;
   }
-  throw new Error("Deterministic Fruit round did not reach game over");
+  throw new Error("2048 round did not reach game over");
 }
 
 async function playRound({
@@ -348,52 +306,28 @@ async function playRound({
   page,
   verifyParentLifecycle = false,
 }) {
-  await frame.locator(".hero-play-button").click();
+  const playNow = frame.getByRole("button", { name: "Chơi ngay", exact: true });
+  if (await playNow.isVisible().catch(() => false)) {
+    await playNow.click();
+  }
   const canvas = frame.locator("canvas").last();
   await canvas.waitFor({ state: "visible", timeout: 15_000 });
-  await frame.locator(".countdownOverlay").waitFor({
-    state: "visible",
-    timeout: 10_000,
-  });
-  await frame.locator(".countdownOverlay").waitFor({
-    state: "detached",
-    timeout: 10_000,
-  });
-  await waitForDeterministicGameSeed(
-    frame,
-    expectedCompletionCount,
-  );
 
   const lifecycle = verifyParentLifecycle
     ? await verifyLifecycle({ frame, page })
     : null;
-  await sliceUntilGameOver({ frame, page });
+  await playUntilGameOver({ frame, page });
 
   await frame
     .getByRole("button", { name: "Không", exact: true })
     .click();
-  const scoreElement = frame.locator(".scoreValue");
+  const scoreElement = frame.locator(".game-score-value").first();
   await scoreElement.waitFor({ state: "visible" });
   const scoreText = (await scoreElement.textContent()) || "";
   const finalScore = Number(scoreText.replace(/[^\d]/g, ""));
   invariant(
     Number.isInteger(finalScore) && finalScore > 0,
     `${mode} round did not produce a qualifying final score`,
-  );
-
-  const completions = await waitUntil(
-    async () => {
-      const values = await readCompleteMessages(page);
-      return values.length === expectedCompletionCount
-        ? values
-        : null;
-    },
-    `${mode} completion was not observed exactly once`,
-  );
-  const completion = completions.at(-1);
-  invariant(
-    ROUND_ID_PATTERN.test(completion.roundId),
-    `${mode} completion roundId is invalid`,
   );
 
   const beforeEnd = fixture.getEvidence();
@@ -403,12 +337,27 @@ async function playRound({
   );
   await frame
     .getByRole("button", {
-      name: "Kết thúc game",
+      name: "Kết thúc",
       exact: true,
     })
     .click();
   await new Promise((resolve) => setTimeout(resolve, 250));
   frame = await waitForHero(frame, `${mode} final score exit`);
+
+  const completions = await waitUntil(
+    async () => {
+      const values = await readCompleteMessages(page);
+      return values.length === expectedCompletionCount
+        ? values
+        : null;
+    },
+    `${mode} completion was not observed exactly once after End`,
+  );
+  const completion = completions.at(-1);
+  invariant(
+    completion && ROUND_ID_PATTERN.test(completion.roundId),
+    `${mode} completion roundId is invalid`,
+  );
 
   return {
     frame,
@@ -449,6 +398,13 @@ async function run() {
   const r2Template = path.resolve(
     process.env.WINK_R2_TEMPLATE_DIR || DEFAULT_R2_TEMPLATE,
   );
+  try {
+    await fs.access(path.join(r2Template, "dev-server.mjs"));
+  } catch {
+    throw new Error(
+      `C4 requires the R2 harness template at ${r2Template}; set WINK_R2_TEMPLATE_DIR to a checkout containing dev-server.mjs`,
+    );
+  }
   const r2Root = path.resolve(r2Template, "..");
   const r2Commit = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: r2Root,
@@ -481,15 +437,24 @@ async function run() {
     "dist contains a non-certified bridge",
   );
   invariant(
-    distConfigText === publicConfigText,
-    "dist runtime config differs from the verified public config",
+    JSON.parse(publicConfigText).gameId === GAME_ID &&
+      JSON.parse(publicConfigText).environment === "prod" &&
+      JSON.parse(publicConfigText).protocolVersion === PROTOCOL_VERSION &&
+      JSON.parse(publicConfigText).bridgeVersion === BRIDGE_VERSION,
+    "public runtime config is not the canonical production config",
   );
-  const runtimeConfig = JSON.parse(distConfigText);
+  const runtimeConfig = {
+    gameId: GAME_ID,
+    environment: "dev",
+    protocolVersion: PROTOCOL_VERSION,
+    bridgeVersion: BRIDGE_VERSION,
+    allowedParentOrigins: [HARNESS_ORIGIN],
+  };
   invariant(
     runtimeConfig.environment === "dev" &&
       runtimeConfig.gameId === GAME_ID &&
-      runtimeConfig.protocolVersion === 1 &&
-      runtimeConfig.bridgeVersion === "9.0.1" &&
+      runtimeConfig.protocolVersion === PROTOCOL_VERSION &&
+      runtimeConfig.bridgeVersion === BRIDGE_VERSION &&
       JSON.stringify(runtimeConfig.allowedParentOrigins) ===
         JSON.stringify([HARNESS_ORIGIN]),
     "dist runtime config is not the exact local C4 config",
@@ -502,7 +467,11 @@ async function run() {
   const browserConsole = [];
   const browserErrors = [];
   const browserUrls = [];
+  const distConfigPath = path.join(DIST_DIR, "wink-runtime-config.json");
   try {
+    // C4 runs the built artifact inside the local R2 parent. Keep the
+    // committed production config untouched and swap only the served copy.
+    await fs.writeFile(distConfigPath, `${JSON.stringify(runtimeConfig, null, 2)}\n`);
     staticServer = await createStaticDistServer({
       rootDir: DIST_DIR,
     });
@@ -538,7 +507,7 @@ async function run() {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
     });
-    await context.addInitScript(({ deterministicSeed }) => {
+    await context.addInitScript(() => {
       const messages = [];
       Object.defineProperty(window, "__C4_MESSAGES__", {
         configurable: false,
@@ -606,30 +575,7 @@ async function run() {
         };
       }
 
-      const gameSeeds = [];
-      Object.defineProperty(window, "__C4_GAME_SEEDS__", {
-        configurable: false,
-        value: gameSeeds,
-      });
-      if (window.crypto?.getRandomValues) {
-        const originalGetRandomValues =
-          window.crypto.getRandomValues.bind(window.crypto);
-        Object.defineProperty(window.crypto, "getRandomValues", {
-          configurable: true,
-          value(array) {
-            if (
-              array instanceof Uint32Array &&
-              array.length === 1
-            ) {
-              array[0] = deterministicSeed;
-              gameSeeds.push(deterministicSeed);
-              return array;
-            }
-            return originalGetRandomValues(array);
-          },
-        });
-      }
-    }, { deterministicSeed: DETERMINISTIC_GAME_SEED });
+    });
 
     const attachDiagnostics = (page) => {
       page.on("console", (message) => {
@@ -680,17 +626,15 @@ async function run() {
       ),
       "top-level game made a Wink config/API request",
     );
-    await topLevel.locator(".hero-leaderboard-button").waitFor({
+    await topLevel.locator('[aria-label="Bảng xếp hạng"]').waitFor({
       state: "visible",
       timeout: 20_000,
     });
     const topLevelUnhandledBefore = await topLevel.evaluate(
       () => window.__C4_UNHANDLED_REJECTIONS__.length,
     );
-    await topLevel.locator(".hero-leaderboard-button").click();
-    await topLevel.locator(".leaderboardScreen").waitFor({
-      state: "visible",
-    });
+    await topLevel.locator('[aria-label="Bảng xếp hạng"]').click();
+    await topLevel.getByText("Ranking 1-10", { exact: true }).waitFor({ state: "visible" });
     await new Promise((resolve) => setTimeout(resolve, 250));
     const topLevelUnhandledAfter = await topLevel.evaluate(
       () => window.__C4_UNHANDLED_REJECTIONS__.length,
@@ -727,7 +671,7 @@ async function run() {
           .frames()
           .find((candidate) => candidate.url() === `${GAME_ORIGIN}/`) ||
         null,
-      "R2 harness did not load the built Fruit frame",
+      "R2 harness did not load the built 2048 frame",
     );
     await waitForBridgePhase(frame, "ready_anonymous");
     await waitForHero(frame, "initial anonymous landing");
@@ -862,7 +806,6 @@ async function run() {
       },
       build: {
         distSha256: await digestTree(DIST_DIR),
-        deterministicGameSeed: DETERMINISTIC_GAME_SEED,
         bridgeVersion: bridgeEvidence.bridgeVersion,
         protocolVersion: bridgeEvidence.protocolVersion,
         bridgeSha256: bridgeEvidence.sha256,
@@ -919,6 +862,7 @@ async function run() {
     if (harness) await harness.close().catch(() => {});
     if (fixture) await fixture.close().catch(() => {});
     if (staticServer) await staticServer.close().catch(() => {});
+    await fs.writeFile(distConfigPath, distConfigText).catch(() => {});
   }
 }
 

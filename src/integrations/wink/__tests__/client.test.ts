@@ -10,7 +10,7 @@ import type {
 
 const ROUND_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ROUND_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const GAME_ID = '27d74846-b8ca-44b1-87fe-a909d8b9eef9'; // 2048 GAME ID
+const GAME_ID = 'b85fd50c-b3eb-4f4a-93eb-3101994e88e9'; // 2048 GAME ID
 
 function rawState(
   overrides: Partial<RawWinkBridgeState> = {},
@@ -80,7 +80,7 @@ function bridge(
     onMute: vi.fn(() => vi.fn()),
     onUnmute: vi.fn(() => vi.fn()),
     help: vi.fn(() => ({
-      bridgeVersion: '9.0.1',
+      bridgeVersion: '9.2.0',
       protocolVersion: 1,
       phase: state.phase,
       gameId: state.gameId,
@@ -140,6 +140,24 @@ describe('createWinkGameClient (2048)', () => {
         createdAt: '2026-07-29T15:00:00.000Z',
       },
     ]);
+  });
+
+  it('projects a valid maxTile from score metadata without exposing raw metadata', async () => {
+    const client = createWinkGameClient(
+      bridge({
+        getLeaderboard: vi.fn(async () => ({
+          entries: [rawEntry({ metadata: { roundId: ROUND_A, maxTile: 128 } })],
+          total: 1,
+        })),
+      }),
+    );
+
+    await expect(client.getLeaderboard({ limit: 10, offset: 0 })).resolves.toEqual([
+      expect.objectContaining({ maxTile: 128 }),
+    ]);
+    expect(JSON.stringify(await client.getLeaderboard({ limit: 10, offset: 0 }))).not.toContain(
+      'roundId',
+    );
   });
 
   it.each([

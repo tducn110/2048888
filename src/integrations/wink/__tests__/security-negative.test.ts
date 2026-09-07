@@ -12,7 +12,7 @@ const BRIDGE_SOURCE = fs.readFileSync(
   path.join(ROOT, "public/wink-bridge.js"),
   "utf8",
 );
-const GAME_ID = "27d74846-b8ca-44b1-87fe-a909d8b9eef9";
+const GAME_ID = "b85fd50c-b3eb-4f4a-93eb-3101994e88e9";
 const OTHER_GAME_ID = "55555555-5555-4555-8555-555555555555";
 const PARENT_ORIGIN = "http://127.0.0.1:8787";
 const GAME_ORIGIN = "http://127.0.0.1:5173";

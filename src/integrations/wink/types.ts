@@ -1,6 +1,6 @@
 /**
  * Shared types for the 2048 Wink integration.
- * Ported from the certified FruitSlashing reference (bo-lac-fruit-slashing-pixijs).
+ * Public, redacted types for the 2048 Wink iframe integration.
  */
 
 export type WinkMode = 'wink' | 'offline';
@@ -67,6 +67,7 @@ export interface WinkLeaderboardEntry {
   displayName: string | null;
   avatarUrl: string | null;
   createdAt: string | null;
+  maxTile?: number;
 }
 
 export interface WinkPersonalBest {
@@ -147,6 +148,7 @@ export interface WinkIntegration {
     score: number;
     playTimeSec: number;
     qualifies: boolean;
+    metadata?: Record<string, string | number | boolean>;
   }): Promise<WinkSubmitScoreResult | null>;
   completeRound(input: {
     roundId: string;

@@ -6,11 +6,20 @@ interface GameBoardProps {
   tiles: TileCell[];
   onSwipe?: (dir: Direction) => void;
   background: string;
+  paused?: boolean;
 }
 
-export default function GameBoard({ tiles, background }: GameBoardProps) {
+export default function GameBoard({ tiles, background, paused = false }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Pixi2048Renderer | null>(null);
+  const pausedRef = useRef(paused);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+    if (rendererRef.current) {
+      rendererRef.current.setPaused(paused);
+    }
+  }, [paused]);
 
   // Handle ResizeObserver
   useEffect(() => {
@@ -23,6 +32,7 @@ export default function GameBoard({ tiles, background }: GameBoardProps) {
       }
     };
     update(); // Initial read is fine
+    if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
       if (entries.length > 0) {
         update(entries[0].contentRect.width);
@@ -50,9 +60,9 @@ export default function GameBoard({ tiles, background }: GameBoardProps) {
     // Async init
     renderer.init().then(() => {
       if (isDestroyed) {
-        renderer.destroy();
         return;
       }
+      renderer.setPaused(pausedRef.current);
       // Render initial tiles after initialized
       renderer.renderTiles(tilesRef.current);
     });

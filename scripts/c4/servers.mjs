@@ -2,13 +2,12 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
+import { BRIDGE_VERSION, PROTOCOL_VERSION } from "../wink-contract.mjs";
 
-const GAME_ID = "11111111-1111-4111-8111-111111111111";
+const GAME_ID = "b85fd50c-b3eb-4f4a-93eb-3101994e88e9";
 const USER_ID = "44444444-4444-4444-8444-444444444444";
 const GAME_ORIGIN = "http://127.0.0.1:5173";
 const HARNESS_ORIGIN = "http://127.0.0.1:8787";
-const BRIDGE_VERSION = "9.0.1";
-const PROTOCOL_VERSION = 1;
 const MAX_BODY_BYTES = 64 * 1024;
 
 const MIME = Object.freeze({

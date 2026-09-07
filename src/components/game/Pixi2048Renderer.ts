@@ -15,12 +15,24 @@ export class Pixi2048Renderer {
   private tileMap: Map<string, Container> = new Map();
   private tilePool: Container[] = [];
   private boardSize: number = 320;
+  private currentTiles: TileCell[] = [];
+  private paused = false;
 
   constructor(container: HTMLDivElement) {
     this.container = container;
     this.app = new Application();
     this.bgContainer = new Container();
     this.tilesContainer = new Container();
+  }
+
+  public setPaused(paused: boolean) {
+    this.paused = paused;
+    if (!this.app?.renderer) return;
+    if (this.paused) {
+      this.app.stop();
+    } else {
+      this.app.start();
+    }
   }
 
   public async init() {
@@ -51,6 +63,7 @@ export class Pixi2048Renderer {
     this.app.stage.addChild(this.tilesContainer);
 
     this.drawBackground();
+    this.setPaused(this.paused);
   }
 
   public resize(newSize: number) {
@@ -62,6 +75,16 @@ export class Pixi2048Renderer {
     // Clear pool on resize since cell sizes change
     this.tilePool.forEach(t => t.destroy({ children: true }));
     this.tilePool = [];
+
+    // Re-layout all existing active tiles with the new cell size immediately
+    const cellSize = this.getCellSize();
+    const tileMapData = new Map(this.currentTiles.map(t => [t.id, t]));
+    for (const [id, tileContainer] of this.tileMap.entries()) {
+      const tile = tileMapData.get(id);
+      if (tile) {
+        this.layoutTile(tileContainer, tile, cellSize, false);
+      }
+    }
   }
 
   private drawBackground() {
@@ -131,7 +154,56 @@ export class Pixi2048Renderer {
     this.tilePool.push(tileContainer);
   }
 
+  private layoutTile(
+    tileContainer: Container,
+    tile: TileCell,
+    cellSize: number,
+    animateMove = false
+  ) {
+    const targetX = PADDING + tile.col * (cellSize + GAP) + cellSize / 2;
+    const targetY = PADDING + tile.row * (cellSize + GAP) + cellSize / 2;
+    const cfg = getTileConfig(tile.value);
+
+    tileContainer.pivot.set(cellSize / 2, cellSize / 2);
+
+    if (animateMove) {
+      gsap.to(tileContainer, {
+        x: targetX,
+        y: targetY,
+        duration: tile.isMerged ? 0.1 : 0.13,
+        ease: "power2.out",
+      });
+    } else {
+      gsap.killTweensOf(tileContainer);
+      tileContainer.x = targetX;
+      tileContainer.y = targetY;
+    }
+
+    const bg = tileContainer.getChildByLabel("bg") as Graphics;
+    if (bg) {
+      bg.clear();
+      bg.roundRect(0, 0, cellSize, cellSize, 16);
+      bg.fill(cfg.colorBg);
+      bg.stroke({ color: 0x2a2418, alpha: 0.18, width: 2 });
+    }
+
+    const valueText = tileContainer.getChildByLabel("valueText") as Text;
+    if (valueText) {
+      if (valueText.text !== tile.value.toString()) {
+        valueText.text = tile.value.toString();
+      }
+      valueText.style.fill = cfg.colorText;
+      valueText.style.fontSize =
+        cellSize < 80
+          ? tile.value >= 1000 ? 11 : tile.value >= 100 ? 13 : 14
+          : tile.value >= 1000 ? 14 : tile.value >= 100 ? 16 : 18;
+      valueText.x = cellSize / 2;
+      valueText.y = cellSize / 2;
+    }
+  }
+
   public renderTiles(tiles: TileCell[]) {
+    this.currentTiles = tiles;
     const cellSize = this.getCellSize();
     const currentIds = new Set(tiles.map(t => t.id));
 
@@ -148,35 +220,10 @@ export class Pixi2048Renderer {
 
     // Add or update tiles
     tiles.forEach((tile) => {
-      const targetX = PADDING + tile.col * (cellSize + GAP) + cellSize / 2;
-      const targetY = PADDING + tile.row * (cellSize + GAP) + cellSize / 2;
-      const cfg = getTileConfig(tile.value);
-
       if (!this.tileMap.has(tile.id)) {
         // Create or get pooled tile
         const tileContainer = this.getPooledTile();
-        tileContainer.x = targetX;
-        tileContainer.y = targetY;
-        tileContainer.pivot.set(cellSize / 2, cellSize / 2);
-        
-        // Update background
-        const bg = tileContainer.getChildByLabel("bg") as Graphics;
-        bg.clear();
-        bg.roundRect(0, 0, cellSize, cellSize, 16);
-        bg.fill(cfg.colorBg);
-        bg.stroke({ color: 0x2a2418, alpha: 0.18, width: 2 });
-
-
-
-        // Update Value Text
-        const valueText = tileContainer.getChildByLabel("valueText") as Text;
-        if (valueText.text !== tile.value.toString()) {
-          valueText.text = tile.value.toString();
-        }
-        valueText.style.fill = cfg.colorText;
-        valueText.style.fontSize = cellSize < 80 ? (tile.value >= 1000 ? 11 : tile.value >= 100 ? 13 : 14) : (tile.value >= 1000 ? 14 : tile.value >= 100 ? 16 : 18);
-        valueText.x = cellSize / 2;
-        valueText.y = cellSize / 2;
+        this.layoutTile(tileContainer, tile, cellSize, false);
 
         this.tilesContainer.addChild(tileContainer);
         this.tileMap.set(tile.id, tileContainer);
@@ -190,34 +237,11 @@ export class Pixi2048Renderer {
         }
 
       } else {
-        // Update existing tile position
+        // Update existing tile position and properties
         const tileContainer = this.tileMap.get(tile.id)!;
-        
-        // Always tween position in case board was resized or tile moved
-        gsap.to(tileContainer, {
-          x: targetX,
-          y: targetY,
-          duration: tile.isMerged ? 0.1 : 0.13,
-          ease: "power2.out",
-        });
+        this.layoutTile(tileContainer, tile, cellSize, true);
 
         tileContainer.zIndex = tile.isMerged ? 10 : 1;
-
-        // Always ensure Text value and colors match the current tile value
-        const valueText = tileContainer.getChildByLabel("valueText") as Text;
-        if (valueText.text !== tile.value.toString()) {
-          valueText.text = tile.value.toString();
-          valueText.style.fill = cfg.colorText;
-          valueText.style.fontSize = cellSize < 80 ? (tile.value >= 1000 ? 11 : tile.value >= 100 ? 13 : 14) : (tile.value >= 1000 ? 14 : tile.value >= 100 ? 16 : 18);
-          
-          const bg = tileContainer.getChildByLabel("bg") as Graphics;
-          bg.clear();
-          bg.roundRect(0, 0, cellSize, cellSize, 16);
-          bg.fill(cfg.colorBg);
-          bg.stroke({ color: 0x2a2418, alpha: 0.18, width: 2 });
-          
-
-        }
 
         if (tile.isMerged) {
           // Pop animation
@@ -242,6 +266,8 @@ export class Pixi2048Renderer {
     this.tilePool = [];
     
     // OPTIMIZATION: Critical flag releaseGlobalResources avoids memory leaks on unmount
-    this.app.destroy({ releaseGlobalResources: true }, { children: true });
+    if (this.app.renderer) {
+      this.app.destroy({ releaseGlobalResources: true }, { children: true });
+    }
   }
 }

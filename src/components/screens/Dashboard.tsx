@@ -1,6 +1,6 @@
 import { Trophy } from "lucide-react";
 import { getTileConfig } from "@/constants/tileConfig";
-import { BADGE_COLORS, getRank, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
+import { BADGE_COLORS, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
 import type { WinkLeaderboardEntry } from "@/integrations/wink/types";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
 import { useTranslation } from "react-i18next";
@@ -20,7 +20,7 @@ function buildRemoteModel(
   const ranked = entries.map((entry) => ({
     name: entry.displayName ?? (entry.isAnonymous ? t('dashboard.anonymous') : t('dashboard.player')),
     score: entry.score,
-    maxTile: 0,
+    maxTile: entry.maxTile ?? 0,
     isLocal: player?.id === entry.id,
     rank: entry.rank,
   }));
@@ -28,7 +28,7 @@ function buildRemoteModel(
     ? {
         name: player.displayName ?? (player.isAnonymous ? t('dashboard.anonymous') : t('dashboard.player')),
         score: player.score,
-        maxTile: 0,
+        maxTile: player.maxTile ?? 0,
         isLocal: true,
         rank: player.rank,
       }

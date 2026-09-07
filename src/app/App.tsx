@@ -22,10 +22,9 @@ export default function App() {
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const { playSfx, audioStatus, unlockAudio, setParentMuted, setHostPaused, startBgmFromUserGesture } = useGameAudio(musicEnabled, sfxEnabled);
-  const keepGameMounted = screen === "game" || screen === "settings";
-
   // Wink bridge integration — full typed WinkIntegration
   const wink = useWinkIntegration();
+  const { mode: winkMode, phase: winkPhase, refreshLeaderboard, fetchPersonalBest } = wink;
 
   // Apply parent mute to audio engine without touching user prefs
   useEffect(() => {
@@ -38,18 +37,19 @@ export default function App() {
 
   useEffect(() => {
     if (
-      wink.mode === "wink" &&
-      (wink.phase === "ready_anonymous" || wink.phase === "ready_authenticated")
+      winkMode === "wink" &&
+      (winkPhase === "ready_anonymous" || winkPhase === "ready_authenticated")
     ) {
-      void wink.refreshLeaderboard().catch(() => {
+      void refreshLeaderboard().catch(() => {
         // The Wink status/error surface owns the visible failure.
       });
-      void wink.fetchPersonalBest();
+      void fetchPersonalBest();
     }
-  }, [wink.mode, wink.phase, wink.refreshLeaderboard, wink.fetchPersonalBest]);
+  }, [winkMode, winkPhase, refreshLeaderboard, fetchPersonalBest]);
 
   // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
   const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
+  const rendererPaused = screen !== "game" || wink.hostPaused;
 
   /**
    * Called at first tile move — opens a new semantic round.
@@ -71,9 +71,8 @@ export default function App() {
    */
   const onGameEnd = async (
     score: number,
-    _maxTile: number,
+    maxTile: number,
     playTimeMs: number,
-    _doubled: boolean,
   ) => {
     const roundId = activeRoundId;
     setActiveRoundId(null);
@@ -89,6 +88,7 @@ export default function App() {
         score,
         playTimeSec,
         qualifies: true,
+        metadata: { roundId, maxTile },
       });
       await wink.refreshLeaderboard();
       await wink.fetchPersonalBest();
@@ -110,7 +110,6 @@ export default function App() {
     } catch (err: unknown) {
       console.error("[Wink] completeRound failed", err);
     }
-
   };
 
   return (
@@ -181,26 +180,25 @@ export default function App() {
           />
         )}
 
-        {keepGameMounted && (
-          <>
-            <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
-              <Game2048
-                bestScore={wink.bestScore}
-                onGameEnd={onGameEnd}
-                onRoundStart={onRoundStart}
-                bgId={bgId}
-                setBgId={setBgId}
-                onSettings={() => setScreen("settings")}
-                onDashboard={() => setScreen("dashboard")}
-                playSfx={playSfx}
-                audioStatus={audioStatus}
-                unlockAudio={unlockAudio}
-                inputEnabled={inputEnabled}
-              />
-            </div>
+        <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
+          <Game2048
+            bestScore={wink.bestScore}
+            onGameEnd={onGameEnd}
+            onRoundStart={onRoundStart}
+            bgId={bgId}
+            setBgId={setBgId}
+            onSettings={() => setScreen("settings")}
+            onDashboard={() => setScreen("dashboard")}
+            playSfx={playSfx}
+            audioStatus={audioStatus}
+            unlockAudio={unlockAudio}
+            inputEnabled={inputEnabled}
+            rendererPaused={rendererPaused}
+          />
+        </div>
 
-            {screen === "settings" && (
-              <Settings
+        {screen === "settings" && (
+          <Settings
                 musicEnabled={musicEnabled}
                 sfxEnabled={sfxEnabled}
                 onMusicChange={(enabled) => {
@@ -211,9 +209,7 @@ export default function App() {
                 }}
                 onSfxChange={setSfxEnabled}
                 onBack={() => setScreen("game")}
-              />
-            )}
-          </>
+          />
         )}
       </main>
     </div>

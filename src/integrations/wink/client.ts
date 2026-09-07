@@ -5,8 +5,8 @@
  * normalisation. The adapter owns no credential, storage, token, or direct
  * Wink API authority — those stay inside the certified bridge closure.
  *
- * Ported from the certified FruitSlashing reference implementation and
- * adapted for 2048 semantics.
+ * Keeps the 2048 adapter focused on the certified iframe contract and
+ * projects only the fields the game UI is allowed to consume.
  */
 
 import type {
@@ -350,6 +350,12 @@ function projectLeaderboardEntry(value: unknown): WinkLeaderboardEntry {
     );
   }
 
+  const maxTile =
+    isPlainObject(value.metadata) &&
+    Number.isInteger(value.metadata.maxTile) &&
+    (value.metadata.maxTile as number) >= 0
+      ? (value.metadata.maxTile as number)
+      : undefined;
   return Object.freeze({
     id: value.id as string,
     userId: value.userId as string | null,
@@ -360,6 +366,7 @@ function projectLeaderboardEntry(value: unknown): WinkLeaderboardEntry {
     displayName: value.displayName as string | null,
     avatarUrl: null,
     createdAt: value.createdAt,
+    ...(maxTile === undefined ? {} : { maxTile }),
   });
 }
 

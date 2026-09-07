@@ -1,4 +1,4 @@
-/** Mocked Ads adapter. The real SDK integration has been removed. */
+/** Fail-closed adapter until a real rewarded-ad SDK contract is available. */
 export type AdSound = "on" | "off";
 
 export interface AdLifecycle {
@@ -15,48 +15,22 @@ export interface InterstitialAdOptions extends AdLifecycle {
   type?: "next" | "start" | "pause" | "browse";
 }
 
-let activeBreak = false;
-let configuredSound: AdSound = "on";
-
+const activeBreak = false;
 export function bootstrapGoogleH5Ads(): Promise<boolean> {
-  return Promise.resolve(true);
+  return Promise.resolve(false);
 }
 
 export function setGoogleH5AdSound(sound: AdSound): void {
-  configuredSound = sound;
-}
-
-function runLifecycleMock(
-  lifecycle: AdLifecycle,
-  outcome: "viewed" | "dismissed",
-): Promise<boolean> {
-  lifecycle.beforeAd?.();
-  return new Promise((resolve) => {
-    window.setTimeout(() => {
-      lifecycle.afterAd?.();
-      resolve(outcome === "viewed");
-    }, 120);
-  });
+  void sound;
 }
 
 export async function showRewardedVideo(options: RewardedAdOptions): Promise<boolean> {
-  if (activeBreak) return false;
-  activeBreak = true;
-  try {
-    return await runLifecycleMock(options, "viewed");
-  } finally {
-    activeBreak = false;
-  }
+  void options;
+  return false;
 }
 
 export async function showInterstitial(options: InterstitialAdOptions): Promise<void> {
-  if (activeBreak) return;
-  activeBreak = true;
-  try {
-    await runLifecycleMock(options, "dismissed");
-  } finally {
-    activeBreak = false;
-  }
+  void options;
 }
 
 export function isAdBreakActive(): boolean {

@@ -17,7 +17,7 @@ import type {
 
 const ANONYMOUS_STATE: RawWinkBridgeState = {
   phase: 'ready_anonymous',
-  gameId: '27d74846-b8ca-44b1-87fe-a909d8b9eef9',
+  gameId: 'b85fd50c-b3eb-4f4a-93eb-3101994e88e9',
   environment: 'dev',
   sessionId: '33333333-3333-4333-8333-333333333331',
   identityType: 'anonymous',
@@ -237,4 +237,47 @@ it('allows offline mode only with the explicit development flag', () => {
   expect(isOfflineModeEnabled({ dev: false, flag: 'true' })).toBe(false);
   expect(isOfflineModeEnabled({ dev: true, flag: 'false' })).toBe(false);
   expect(isOfflineModeEnabled({ dev: true, flag: undefined })).toBe(false);
+});
+
+it('does not allow window focus or visibility to override parent pause', async () => {
+  const fixture = makeBridge();
+  let latest!: ReturnType<typeof useWinkIntegration>;
+  const mounted = await mountProbe(fixture.raw, (value) => {
+    latest = value;
+  });
+
+  // Parent pauses the game
+  await act(async () => {
+    fixture.pause();
+  });
+  expect(latest.hostPaused).toBe(true);
+
+  // Window gets focus or visibilitychange while parent is paused
+  await act(async () => {
+    window.dispatchEvent(new Event('focus'));
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  // Must STILL be paused because parent is still paused!
+  expect(latest.hostPaused).toBe(true);
+
+  // Only parent resume should unpause
+  await act(async () => {
+    fixture.resume();
+  });
+  expect(latest.hostPaused).toBe(false);
+
+  // A browser blur pauses even when the parent is active.
+  await act(async () => {
+    window.dispatchEvent(new Event('blur'));
+  });
+  expect(latest.hostPaused).toBe(true);
+
+  // Focus cannot clear a still-hidden/document or parent pause; with both
+  // active reasons clear, it does clear the effective pause.
+  await act(async () => {
+    window.dispatchEvent(new Event('focus'));
+  });
+  expect(latest.hostPaused).toBe(false);
+
+  await mounted.unmount();
 });

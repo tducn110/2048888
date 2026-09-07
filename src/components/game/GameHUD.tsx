@@ -1,6 +1,7 @@
 import Button from "@/components/ui/Button";
 import type { GameTheme } from "./gameThemes";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 interface GameHUDProps {
   score: number;
@@ -53,7 +54,7 @@ function GameControls({ children }: { children: React.ReactNode }) {
   );
 }
 
-function InstructionCard({ theme, t }: { theme: GameTheme, t: any }) {
+function InstructionCard({ theme, t }: { theme: GameTheme; t: TFunction }) {
   return (
     <div
       className="game-instruction-card"
@@ -82,7 +83,7 @@ function InstructionCard({ theme, t }: { theme: GameTheme, t: any }) {
   );
 }
 
-function NewGameButton({ onReset, theme, t }: { onReset: () => void; theme: GameTheme, t: any }) {
+function NewGameButton({ onReset, theme, t }: { onReset: () => void; theme: GameTheme; t: TFunction }) {
   return (
     <Button
       className="game-reset-button"

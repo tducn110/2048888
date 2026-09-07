@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { use2048Game } from "@/hooks/use2048Game";
 import GameBoard from "./GameBoard";
 import GameHeader from "./GameHeader";
@@ -22,10 +23,11 @@ interface Game2048Props {
   audioStatus: "idle" | "loading" | "ready";
   unlockAudio: () => void;
   inputEnabled?: boolean;
+  rendererPaused?: boolean;
   onScoreDoubled?: (newScore: number) => void;
   onRoundStart?: () => void;
 }
-export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, onScoreDoubled, onRoundStart }: Game2048Props) {
+export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, rendererPaused = false, onScoreDoubled, onRoundStart }: Game2048Props) {
   const { t } = useTranslation();
   const { tiles, score, scoreDelta, status, hasReached2048, moveCount, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
@@ -41,14 +43,14 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const [isScoreDoubled, setIsScoreDoubled] = useState(false);
   const [pendingDoubleScore, setPendingDoubleScore] = useState(0);
   const [adPending, setAdPending] = useState(false);
-  useEffect(() => {
-    if (status === "lost" && !showContinue && !recordedRef.current) {
-      recordedRef.current = true;
-      const playTimeMs = roundStartMsRef.current ? Date.now() - roundStartMsRef.current : 0;
-      const finalScore = isScoreDoubled ? pendingDoubleScore : score;
-      onGameEnd(finalScore, getMaxTile(tiles), playTimeMs, isScoreDoubled);
-    }
-  }, [status, showContinue, score, pendingDoubleScore, isScoreDoubled, tiles, onGameEnd]);
+  // Explicit round finalizer called by an end-game or manual-reset action.
+  const finalizeRound = (scoreToRecord?: number, doubled = isScoreDoubled) => {
+    if (!roundStartedRef.current || recordedRef.current) return;
+    recordedRef.current = true;
+    const playTimeMs = roundStartMsRef.current ? Date.now() - roundStartMsRef.current : 0;
+    const finalScore = scoreToRecord ?? (doubled ? (pendingDoubleScore || score) : score);
+    onGameEnd(finalScore, getMaxTile(tiles), playTimeMs, doubled);
+  };
   useEffect(() => {
     if (status !== previousStatusRef.current) {
       if (status === "lost") playSfx("lose");
@@ -79,11 +81,8 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     previousMoveCountRef.current = moveCount;
   }, [moveCount, playSfx, scoreDelta, onRoundStart]);
   const handleReset = () => {
-    // If resetting mid-game, explicitly terminate and complete the round
-    if (roundStartedRef.current && status === "playing") {
-      const playTimeMs = roundStartMsRef.current ? Date.now() - roundStartMsRef.current : 0;
-      onGameEnd(score, getMaxTile(tiles), playTimeMs, false);
-    }
+    // Finalize active round on manual reset or ending game over
+    finalizeRound();
     recordedRef.current = false;
     roundStartedRef.current = false;
     roundStartMsRef.current = null;
@@ -106,12 +105,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const handleSwipe = (dir: Direction) => {
     if (inputEnabled) {
-      // Fire onRoundStart on first move
-      if (!roundStartedRef.current) {
-        roundStartedRef.current = true;
-        roundStartMsRef.current = Date.now();
-        onRoundStart?.();
-      }
+      // The move-count effect starts the round only after the reducer accepts a move.
       move(dir);
     }
   };
@@ -341,7 +335,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       >
         {/* Board */}
         <div className="game-board-shell" style={{ position: "relative" }}>
-          <GameBoard tiles={tiles} onSwipe={handleSwipe} background={theme.boardBg} />
+          <GameBoard tiles={tiles} onSwipe={handleSwipe} background={theme.boardBg} paused={rendererPaused} />
           {/* Audio Unlock Overlay */}
           {audioStatus !== "ready" && (
             <div
@@ -463,7 +457,19 @@ function IconButton({
     </button>
   );
 }
-function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onEnd, theme, adPending, t }: any) {
+interface GameDecisionOverlayProps {
+  mode: "revive" | "final";
+  score: number;
+  onContinue: () => void;
+  onDecline: () => void;
+  onDouble?: () => void;
+  onEnd: () => void;
+  theme: GameTheme;
+  adPending: boolean;
+  t: TFunction;
+}
+
+function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onEnd, theme, adPending, t }: GameDecisionOverlayProps) {
   const cardStyle = {
     width: "100%",
     maxWidth: 320,

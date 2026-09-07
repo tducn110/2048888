@@ -1,7 +1,7 @@
 /**
  * useWinkIntegration — connects the 2048 game to the Wink platform bridge.
  *
- * Full typed implementation matching the certified FruitSlashing reference.
+ * Full typed implementation for the 2048 Wink iframe contract.
  * Exposes a WinkIntegration handle with:
  *   - phase / capabilities / state / error — bridge state projection
  *   - hostPaused / parentMuted — lifecycle signals
@@ -12,7 +12,7 @@
  * for local development. It does NOT certify the iframe/security contract.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createWinkGameClient,
   getInstalledWinkBridge,
@@ -220,9 +220,20 @@ export function useWinkIntegration(): WinkIntegration {
   const [error, setError] = useState<WinkIntegrationError | null>(
     connection.error,
   );
-  const [hostPaused, setHostPaused] = useState(
+  const [parentPaused, setParentPaused] = useState(
     connection.state.lifecycle.paused,
   );
+  const [documentHidden, setDocumentHidden] = useState(
+    () => typeof document !== "undefined" && Boolean(document.hidden),
+  );
+  const [windowBlurred, setWindowBlurred] = useState(false);
+  const hostPaused = parentPaused || documentHidden || windowBlurred;
+  const parentPausedRef = useRef(parentPaused);
+  const documentHiddenRef = useRef(documentHidden);
+  const windowBlurredRef = useRef(windowBlurred);
+  const getEffectivePaused = () =>
+    parentPausedRef.current || documentHiddenRef.current || windowBlurredRef.current;
+
   const [parentMuted, setParentMuted] = useState(
     connection.state.lifecycle.muted,
   );
@@ -238,50 +249,69 @@ export function useWinkIntegration(): WinkIntegration {
     const client = connection.client;
     const cleanups: Array<() => void> = [];
 
-    const handlePause = () => {
-      setHostPaused(true);
-      setState((current) => stateWithLifecycle(current, { paused: true }));
+    const handleWindowBlur = () => {
+      windowBlurredRef.current = true;
+      setWindowBlurred(true);
+      setState((current) => stateWithLifecycle(current, { paused: getEffectivePaused() }));
     };
 
-    const handleResume = () => {
-      setHostPaused(false);
-      setState((current) => stateWithLifecycle(current, { paused: false }));
+    const handleWindowFocus = () => {
+      windowBlurredRef.current = false;
+      setWindowBlurred(false);
+      setState((current) => stateWithLifecycle(current, { paused: getEffectivePaused() }));
     };
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        handlePause();
-      } else {
-        handleResume();
-      }
+      const isHidden = Boolean(document.hidden);
+      documentHiddenRef.current = isHidden;
+      setDocumentHidden(isHidden);
+      setState((current) => stateWithLifecycle(current, { paused: getEffectivePaused() }));
     };
 
-    window.addEventListener("blur", handlePause);
-    window.addEventListener("focus", handleResume);
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     cleanups.push(() => {
-      window.removeEventListener("blur", handlePause);
-      window.removeEventListener("focus", handleResume);
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     });
 
     if (client) {
       const applyState = (next: RedactedWinkState) => {
         const projectedError = next.error ? safeError(next.error) : null;
-        setState(stateWithError(next, projectedError));
+        const nextParentPaused = next.lifecycle.paused;
+        parentPausedRef.current = nextParentPaused;
+        setParentPaused(nextParentPaused);
+        const effective = getEffectivePaused();
+        setState(
+          stateWithError(
+            {
+              ...next,
+              lifecycle: { ...next.lifecycle, paused: effective },
+            },
+            projectedError,
+          ),
+        );
         setError(projectedError);
-        setHostPaused(next.lifecycle.paused);
         setParentMuted(next.lifecycle.muted);
       };
 
       try {
         cleanups.push(client.subscribe(applyState));
-        cleanups.push(client.onPause(handlePause));
+        cleanups.push(
+          client.onPause(() => {
+            parentPausedRef.current = true;
+            setParentPaused(true);
+            setState((current) => stateWithLifecycle(current, { paused: getEffectivePaused() }));
+          }),
+        );
         cleanups.push(
           client.onResume(() => {
-            setHostPaused(false);
-            setState((current) => stateWithLifecycle(current, { paused: false }));
+            parentPausedRef.current = false;
+            setParentPaused(false);
+            setState((current) => stateWithLifecycle(current, { paused: getEffectivePaused() }));
           }),
         );
       cleanups.push(
@@ -375,6 +405,7 @@ export function useWinkIntegration(): WinkIntegration {
       score: number;
       playTimeSec: number;
       qualifies: boolean;
+      metadata?: Record<string, string | number | boolean>;
     }): Promise<WinkSubmitScoreResult | null> => {
       if (!input.qualifies || offline) return null;
       if (!connection.client) {
@@ -387,7 +418,7 @@ export function useWinkIntegration(): WinkIntegration {
         const result = await connection.client.submitScore({
           score: input.score,
           playTime: input.playTimeSec,
-          metadata: { roundId: input.roundId },
+          metadata: { roundId: input.roundId, ...(input.metadata ?? {}) },
         });
         setPlayerEntry(result.entry);
         setDisplayName(result.entry.displayName);
