@@ -102,10 +102,16 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'vi',
+    fallbackLng: 'en',
+    detection: {
+      order: ['localStorage'],
+      lookupLocalStorage: 'i18nextLng',
+      caches: ['localStorage'],
+    },
     interpolation: {
       escapeValue: false
     }
   });
 
 export default i18n;
+

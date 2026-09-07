@@ -15,9 +15,11 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
   const { t, i18n } = useTranslation();
 
   const handleLanguageChange = () => {
-    const newLang = i18n.language === "vi" ? "en" : "vi";
+    const currentLang = i18n.resolvedLanguage || i18n.language || "en";
+    const newLang = currentLang.startsWith("vi") ? "en" : "vi";
     i18n.changeLanguage(newLang);
   };
+
 
   return (
     <div
@@ -116,8 +118,9 @@ export default function Settings({ musicEnabled, sfxEnabled, onMusicChange, onSf
             size="sm" 
             onClick={handleLanguageChange}
           >
-            {i18n.language === 'vi' ? t('settings.vi') : t('settings.en')}
+            {(i18n.resolvedLanguage || i18n.language || 'en').startsWith('vi') ? t('settings.vi') : t('settings.en')}
           </Button>
+
         </div>
       </div>
 
