@@ -450,3 +450,101 @@ describe("milestone 2048 — latching behavior via reducer", () => {
     expect(next.current.hasReached2048).toBe(true);
   });
 });
+
+describe("Milestone celebration subsystem", () => {
+  it("moveBoard emits milestoneCreated when merge produces 2048", () => {
+    const tiles = fromGrid([
+      [1024, 1024, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ]);
+    const res = moveBoard(tiles, "left");
+    expect(res.moved).toBe(true);
+    expect(res.milestoneCreated).toBe(2048);
+  });
+
+  it("moveBoard applies highest-only policy when multiple milestones created in one move", () => {
+    // 1024+1024 -> 2048, 2048+2048 -> 4096 in the same swipe
+    const tiles = fromGrid([
+      [1024, 1024, 0, 0],
+      [2048, 2048, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ]);
+    const res = moveBoard(tiles, "left");
+    expect(res.moved).toBe(true);
+    expect(res.milestoneCreated).toBe(4096);
+  });
+
+  it("moveBoard returns milestoneCreated=null for normal non-milestone merges", () => {
+    const tiles = fromGrid([
+      [2, 2, 4, 4],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ]);
+    const res = moveBoard(tiles, "left");
+    expect(res.moved).toBe(true);
+    expect(res.milestoneCreated).toBeNull();
+  });
+
+  it("reducer tracks highestCelebratedMilestone monotonically without duplicate celebrations", () => {
+    // Initial state
+    let state: State = {
+      current: {
+        ...makeFreshBoard(),
+        tiles: fromGrid([
+          [1024, 1024, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+        ]),
+      },
+    };
+
+    // First merge reaches 2048 -> triggers celebration
+    state = reducer(state, { type: "MOVE", direction: "left" });
+    expect(state.current.highestCelebratedMilestone).toBe(2048);
+    expect(state.current.celebrationMilestone).toBe(2048);
+
+    // Setup another merge of 1024+1024 -> 2048
+    state = {
+      current: {
+        ...state.current,
+        tiles: fromGrid([
+          [1024, 1024, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+        ]),
+      },
+    };
+    state = reducer(state, { type: "MOVE", direction: "left" });
+    // Should NOT celebrate 2048 again because highestCelebratedMilestone is already 2048
+    expect(state.current.highestCelebratedMilestone).toBe(2048);
+    expect(state.current.celebrationMilestone).toBeNull();
+
+    // Setup merge of 2048+2048 -> 4096
+    state = {
+      current: {
+        ...state.current,
+        tiles: fromGrid([
+          [2048, 2048, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+        ]),
+      },
+    };
+    state = reducer(state, { type: "MOVE", direction: "left" });
+    // Higher milestone 4096 triggers celebration
+    expect(state.current.highestCelebratedMilestone).toBe(4096);
+    expect(state.current.celebrationMilestone).toBe(4096);
+
+    // RESET clears highestCelebratedMilestone
+    state = reducer(state, { type: "RESET" });
+    expect(state.current.highestCelebratedMilestone).toBeNull();
+    expect(state.current.celebrationMilestone).toBeNull();
+  });
+});

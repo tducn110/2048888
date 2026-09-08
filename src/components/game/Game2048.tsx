@@ -29,13 +29,12 @@ interface Game2048Props {
 }
 export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, rendererPaused = false, onScoreDoubled, onRoundStart }: Game2048Props) {
   const { t } = useTranslation();
-  const { tiles, score, scoreDelta, status, hasReached2048, moveCount, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
+  const { tiles, score, scoreDelta, status, hasReached2048, moveCount, celebrationMilestone, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
   // Record game result exactly once per terminal status transition
   const recordedRef = useRef(false);
   const previousMoveCountRef = useRef(0);
   const previousStatusRef = useRef(status);
-  const previousMilestoneRef = useRef(hasReached2048);
   // Track play time for Wink score submission
   const roundStartMsRef = useRef<number | null>(null);
   const roundStartedRef = useRef(false);
@@ -58,11 +57,11 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     }
   }, [playSfx, status]);
   useEffect(() => {
-    if (!previousMilestoneRef.current && hasReached2048 && status !== "lost") {
+    if (celebrationMilestone && status !== "lost") {
       playSfx("win");
     }
-    previousMilestoneRef.current = hasReached2048;
-  }, [hasReached2048, playSfx, status]);
+  }, [celebrationMilestone, playSfx, status]);
+
   useEffect(() => {
     if (previousMoveCountRef.current === 0 && moveCount === 1) {
       // First actual move — start the Wink round (covers keyboard input path)
@@ -335,7 +334,13 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       >
         {/* Board */}
         <div className="game-board-shell" style={{ position: "relative" }}>
-          <GameBoard tiles={tiles} onSwipe={handleSwipe} background={theme.boardBg} paused={rendererPaused} />
+          <GameBoard
+            tiles={tiles}
+            onSwipe={handleSwipe}
+            background={theme.boardBg}
+            paused={rendererPaused}
+            celebrationMilestone={celebrationMilestone}
+          />
           {/* Audio Unlock Overlay */}
           {audioStatus !== "ready" && (
             <div

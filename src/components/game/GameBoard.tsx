@@ -7,9 +7,10 @@ interface GameBoardProps {
   onSwipe?: (dir: Direction) => void;
   background: string;
   paused?: boolean;
+  celebrationMilestone?: number | null;
 }
 
-export default function GameBoard({ tiles, background, paused = false }: GameBoardProps) {
+export default function GameBoard({ tiles, background, paused = false, celebrationMilestone }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Pixi2048Renderer | null>(null);
   const pausedRef = useRef(paused);
@@ -82,6 +83,14 @@ export default function GameBoard({ tiles, background, paused = false }: GameBoa
       rendererRef.current.renderTiles(tiles);
     }
   }, [tiles]);
+
+  // Sync milestone celebration to renderer
+  useEffect(() => {
+    if (celebrationMilestone && rendererRef.current && rendererRef.current.app.renderer) {
+      rendererRef.current.showMilestone?.(celebrationMilestone, true);
+    }
+  }, [celebrationMilestone]);
+
 
   return (
     <div

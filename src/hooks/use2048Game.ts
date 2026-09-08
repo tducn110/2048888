@@ -7,7 +7,7 @@ import {
   moveBoard,
   removeReviveTiles,
 } from "@/utils/gameLogic";
-import type { BoardState, Direction, GameStatus } from "@/types";
+import type { BoardState, Direction, GameStatus, TileCell } from "@/types";
 
 export interface State {
   current: BoardState;
@@ -27,6 +27,8 @@ export function makeFreshBoard(): BoardState {
     status: "playing",
     hasReached2048: false,
     moveCount: 0,
+    highestCelebratedMilestone: null,
+    celebrationMilestone: null,
   };
 }
 
@@ -36,7 +38,7 @@ export function reducer(state: State, action: Action): State {
       const { current } = state;
       if (current.status === "lost") return state;
 
-      const { tiles: moved, scoreDelta, moved: didMove } = moveBoard(
+      const { tiles: moved, scoreDelta, moved: didMove, milestoneCreated } = moveBoard(
         current.tiles,
         action.direction
       );
@@ -48,6 +50,17 @@ export function reducer(state: State, action: Action): State {
       const reached2048 = current.hasReached2048 || hasWon(withSpawn);
       const status: GameStatus = canMove(withSpawn) ? "playing" : "lost";
 
+      let nextHighest = current.highestCelebratedMilestone ?? null;
+      let celebrationMilestone: number | null = null;
+
+      if (
+        milestoneCreated !== null &&
+        (nextHighest === null || milestoneCreated > nextHighest)
+      ) {
+        nextHighest = milestoneCreated;
+        celebrationMilestone = milestoneCreated;
+      }
+
       return {
         current: {
           tiles: withSpawn,
@@ -56,6 +69,8 @@ export function reducer(state: State, action: Action): State {
           status,
           hasReached2048: reached2048,
           moveCount: current.moveCount + 1,
+          highestCelebratedMilestone: nextHighest,
+          celebrationMilestone,
         },
       };
     }
@@ -90,7 +105,22 @@ export function reducer(state: State, action: Action): State {
   }
 }
 
-export function use2048Game(inputEnabled = true) {
+export interface Use2048GameReturn {
+  tiles: TileCell[];
+  score: number;
+  scoreDelta: number;
+  status: GameStatus;
+  hasReached2048: boolean;
+  moveCount: number;
+  celebrationMilestone?: number | null;
+  highestCelebratedMilestone?: number | null;
+  move: (dir: Direction) => void;
+  reset: () => void;
+  revive: () => void;
+  doubleScore: () => void;
+}
+
+export function use2048Game(inputEnabled = true): Use2048GameReturn {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     current: makeFreshBoard(),
   }));
@@ -138,6 +168,8 @@ export function use2048Game(inputEnabled = true) {
     status: state.current.status,
     hasReached2048: state.current.hasReached2048,
     moveCount: state.current.moveCount,
+    celebrationMilestone: state.current.celebrationMilestone ?? null,
+    highestCelebratedMilestone: state.current.highestCelebratedMilestone ?? null,
     move,
     reset,
     revive,

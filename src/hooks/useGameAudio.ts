@@ -11,14 +11,14 @@ const AUDIO_VOLUME = {
   move: 0.40,
   merge: 0.50,
   lose: 0.50,
-  win: 0.55,
+  win: 0.65,
   master: 0.85,
 } as const;
 
 const SFX_SOURCES = {
   move: { ogg: "/assets/audio-optimized/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
   merge: { ogg: "/assets/audio-optimized/switch7.ogg", mp3: "/assets/audio-optimized/switch7.mp3" },
-  win: { ogg: "/assets/audio-optimized/switch33.ogg", mp3: "/assets/audio-optimized/switch33.mp3" },
+  win: { ogg: "/assets/audio-optimized/celebrate.ogg", mp3: "/assets/audio-optimized/celebrate.mp3" },
   lose: { ogg: "/assets/audio-optimized/switch24.ogg", mp3: "/assets/audio-optimized/switch24.mp3" },
   tap: { ogg: "/assets/audio-optimized/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
 } as const;
@@ -210,12 +210,12 @@ export function isSfxActive(state: AudioPolicyState = policyState): boolean {
 
 // Duck BGM ~4 dB for important events so SFX stands out without high gain.
 // Uses holdAndRamp so consecutive merges never jump or fight automation.
-function duckBgm() {
+function duckBgm(duration = 0.22) {
   if (!audioCtx || !bgmLocalGain) return;
   const now = audioCtx.currentTime;
 
-  holdAndRamp(bgmLocalGain.gain, AUDIO_VOLUME.bgm * 0.6, now, 0.03);
-  holdAndRamp(bgmLocalGain.gain, AUDIO_VOLUME.bgm, now + 0.03, 0.22);
+  holdAndRamp(bgmLocalGain.gain, AUDIO_VOLUME.bgm * 0.4, now, 0.04);
+  holdAndRamp(bgmLocalGain.gain, AUDIO_VOLUME.bgm, now + duration, 0.35);
 }
 
 function syncAudioPolicy() {
@@ -286,8 +286,10 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     if (!buffer) return;
 
     // Duck BGM on important events (merge/win/lose) — not on tap/move
-    if (name === "merge" || name === "win" || name === "lose") {
-      duckBgm();
+    if (name === "win") {
+      duckBgm(2.4);
+    } else if (name === "merge" || name === "lose") {
+      duckBgm(0.22);
     }
 
     // Resume context if suspended (common on iOS)

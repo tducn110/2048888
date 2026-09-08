@@ -30,6 +30,8 @@ export interface BoardState {
   status: GameStatus;
   hasReached2048: boolean;
   moveCount: number;
+  highestCelebratedMilestone?: number | null;
+  celebrationMilestone?: number | null;
 }
 
 export interface TileConfig {

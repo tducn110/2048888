@@ -39,11 +39,25 @@ function flipH(grid: (TileCell | null)[][]): (TileCell | null)[][] {
   return grid.map((row) => [...row].reverse());
 }
 
+// ── Milestone constants ───────────────────────────────────
+
+export const MILESTONES = [2048, 4096, 8192, 16384, 32768, 65536] as const;
+export type MilestoneValue = (typeof MILESTONES)[number];
+
+export function isMilestoneValue(val: number): val is MilestoneValue {
+  return (MILESTONES as readonly number[]).includes(val);
+}
+
 // ── Core merge ───────────────────────────────────────────
+
+interface SlideAccumulator {
+  score: number;
+  milestones: number[];
+}
 
 function slideRow(
   row: (TileCell | null)[],
-  accumScore: { value: number }
+  accum: SlideAccumulator
 ): (TileCell | null)[] {
   const cells = row.filter((c): c is TileCell => c !== null);
   const result: (TileCell | null)[] = [];
@@ -52,7 +66,10 @@ function slideRow(
   while (i < cells.length) {
     if (i + 1 < cells.length && cells[i].value === cells[i + 1].value) {
       const newVal = cells[i].value * 2;
-      accumScore.value += newVal;
+      accum.score += newVal;
+      if (isMilestoneValue(newVal)) {
+        accum.milestones.push(newVal);
+      }
       result.push({
         ...cells[i],
         id: cells[i].id,
@@ -77,17 +94,18 @@ export interface MoveResult {
   tiles: TileCell[];
   scoreDelta: number;
   moved: boolean;
+  milestoneCreated: number | null;
 }
 
 export function moveBoard(tiles: TileCell[], direction: Direction): MoveResult {
   let grid = tilesToGrid(tiles);
-  const accumScore = { value: 0 };
+  const accum: SlideAccumulator = { score: 0, milestones: [] };
 
   if (direction === "right") grid = flipH(grid);
   if (direction === "up") grid = transpose(grid);
   if (direction === "down") grid = flipH(transpose(grid));
 
-  const slid = grid.map((row) => slideRow(row, accumScore));
+  const slid = grid.map((row) => slideRow(row, accum));
 
   let result = slid;
   if (direction === "right") result = flipH(slid);
@@ -97,7 +115,18 @@ export function moveBoard(tiles: TileCell[], direction: Direction): MoveResult {
   const newTiles = gridToTiles(result);
   const moved = didTilesChange(tiles, newTiles);
 
-  return { tiles: newTiles, scoreDelta: accumScore.value, moved };
+  // Highest-only policy for milestones created during this move
+  const milestoneCreated =
+    moved && accum.milestones.length > 0
+      ? Math.max(...accum.milestones)
+      : null;
+
+  return {
+    tiles: newTiles,
+    scoreDelta: accum.score,
+    moved,
+    milestoneCreated,
+  };
 }
 
 function didTilesChange(prev: TileCell[], next: TileCell[]): boolean {
