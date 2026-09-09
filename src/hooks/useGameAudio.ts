@@ -2,17 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 
 const MUSIC_SRC = "/assets/audio-optimized/music.mp3";
 
-// Volume preset: BGM stays perceptually below gameplay SFX.
-// UI SFX +3-6 dB / gameplay SFX +6-9 dB / important SFX +8-10 dB over BGM.
-// Never default to 1.0 — keep master headroom and duck BGM instead.
+// Volume preset: Calibrated against 01_fruit sound design standards.
+// Master is full scale (1.0), with DynamicsCompressor providing safety headroom against clipping.
+// BGM ducking on merge/win provides clarity for gameplay feedback without sacrificing overall volume.
 const AUDIO_VOLUME = {
-  bgm: 0.18,
-  tap: 0.35,
-  move: 0.40,
-  merge: 0.50,
-  lose: 0.50,
-  win: 0.65,
-  master: 0.85,
+  bgm: 0.25,
+  tap: 0.60,
+  move: 0.70,
+  merge: 0.85,
+  lose: 0.80,
+  win: 0.95,
+  master: 1.0,
 } as const;
 
 const SFX_SOURCES = {

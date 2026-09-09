@@ -1,6 +1,6 @@
 import { Trophy } from "lucide-react";
 import { getTileConfig } from "@/constants/tileConfig";
-import { BADGE_COLORS, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
+import { BADGE_COLORS, buildRemoteModel, type RankedLeaderboardEntry } from "@/lib/dashboardHelpers";
 import type { WinkLeaderboardEntry } from "@/integrations/wink/types";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
 import { useTranslation } from "react-i18next";
@@ -10,30 +10,6 @@ interface DashboardProps {
   leaderboard: readonly WinkLeaderboardEntry[];
   player: WinkLeaderboardEntry | null;
   onPlay: () => void;
-}
-
-function buildRemoteModel(
-  entries: readonly WinkLeaderboardEntry[],
-  player: WinkLeaderboardEntry | null,
-  t: (key: string) => string
-) {
-  const ranked = entries.map((entry) => ({
-    name: entry.displayName ?? (entry.isAnonymous ? t('dashboard.anonymous') : t('dashboard.player')),
-    score: entry.score,
-    maxTile: entry.maxTile ?? 0,
-    isLocal: player?.id === entry.id,
-    rank: entry.rank,
-  }));
-  const playerRow = player
-    ? {
-        name: player.displayName ?? (player.isAnonymous ? t('dashboard.anonymous') : t('dashboard.player')),
-        score: player.score,
-        maxTile: player.maxTile ?? 0,
-        isLocal: true,
-        rank: player.rank,
-      }
-    : null;
-  return { topEntries: ranked.slice(0, 10), currentPlayer: playerRow };
 }
 
 export default function Dashboard({

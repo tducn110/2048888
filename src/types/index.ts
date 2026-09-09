@@ -10,18 +10,6 @@ export interface TileCell {
   isMerged: boolean;
 }
 
-export interface HistoryEntry {
-  date: string;
-  score: number;
-  maxTile: number;
-}
-
-export interface LocalStats {
-  bestScore: number;
-  lastScore: number;
-  totalGames: number;
-  history: HistoryEntry[];
-}
 
 export interface BoardState {
   tiles: TileCell[];

@@ -159,7 +159,12 @@ export function addRandomTile(tiles: TileCell[]): TileCell[] {
 }
 
 export function removeReviveTiles(tiles: TileCell[]): TileCell[] {
-  return tiles.filter((tile) => tile.value !== 2 && tile.value !== 4);
+  const filtered = tiles.filter((tile) => tile.value !== 2 && tile.value !== 4);
+  if (filtered.length < tiles.length || tiles.length === 0) {
+    return filtered;
+  }
+  const minVal = Math.min(...tiles.map((t) => t.value));
+  return tiles.filter((tile) => tile.value !== minVal);
 }
 
 export function canMove(tiles: TileCell[]): boolean {

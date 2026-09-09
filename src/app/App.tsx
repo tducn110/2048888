@@ -131,30 +131,6 @@ export default function App() {
     }}>
       <CountrysideBackdrop themeId={bgId} />
 
-      {/* Wink error banner (visible failure for CAPABILITY_DENIED etc.) */}
-      {wink.error && wink.error.code === "CAPABILITY_DENIED" && (
-        <div
-          role="alert"
-          aria-live="polite"
-          style={{
-            position: "absolute",
-            top: 12,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 100,
-            background: "rgba(180,30,30,0.92)",
-            color: "#fff",
-            padding: "8px 20px",
-            borderRadius: 8,
-            fontSize: 13,
-            maxWidth: "90vw",
-            textAlign: "center",
-          }}
-        >
-          {wink.error.message}
-        </div>
-      )}
-
       {/* Main content */}
       <main className={screen === "game" ? "app-main app-main--game" : "app-main"} style={{
         position: "relative",

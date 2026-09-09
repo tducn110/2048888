@@ -11,7 +11,6 @@ import { ChartColumnBig, Settings, Loader2, Clapperboard } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
-import { showRewardedVideo } from "@/integrations/ads/googleH5Ads";
 interface Game2048Props {
   bestScore: number;
   onGameEnd: (score: number, maxTile: number, playTimeMs: number, doubled: boolean) => void;
@@ -29,7 +28,7 @@ interface Game2048Props {
 }
 export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettings, onDashboard, playSfx, audioStatus, unlockAudio, inputEnabled = true, rendererPaused = false, onScoreDoubled, onRoundStart }: Game2048Props) {
   const { t } = useTranslation();
-  const { tiles, score, scoreDelta, status, hasReached2048, moveCount, celebrationMilestone, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
+  const { tiles, score, scoreDelta, status, moveCount, celebrationMilestone, move, reset, revive, doubleScore } = use2048Game(inputEnabled);
   const theme = getGameTheme(bgId);
   // Record game result exactly once per terminal status transition
   const recordedRef = useRef(false);
@@ -41,7 +40,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const [showContinue, setShowContinue] = useState(true);
   const [isScoreDoubled, setIsScoreDoubled] = useState(false);
   const [pendingDoubleScore, setPendingDoubleScore] = useState(0);
-  const [adPending, setAdPending] = useState(false);
   // Explicit round finalizer called by an end-game or manual-reset action.
   const finalizeRound = (scoreToRecord?: number, doubled = isScoreDoubled) => {
     if (!roundStartedRef.current || recordedRef.current) return;
@@ -91,13 +89,8 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
     setBgId(getNextGameThemeId(bgId));
     reset();
   };
-  const handleRevive = async () => {
-    if (adPending) return;
-    setAdPending(true);
-    const rewarded = await showRewardedVideo({ name: "revive_after_loss" });
-    setAdPending(false);
+  const handleRevive = () => {
     setShowContinue(false);
-    if (!rewarded) return;
     revive();
   };
   const gameCardRef = useRef<HTMLDivElement>(null);
@@ -395,7 +388,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             <GameDecisionOverlay
               mode={showContinue ? "revive" : "final"}
               score={score}
-              adPending={adPending}
               theme={theme}
               t={t}
               onContinue={handleRevive}
@@ -403,15 +395,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
               onDouble={
                 isScoreDoubled
                   ? undefined
-                  : async () => {
-                      if (adPending) return;
-                      setAdPending(true);
-                      const rewarded = await showRewardedVideo({ name: "double_final_score" });
-                      setAdPending(false);
-                      if (!rewarded) {
-                        alert("Không có video quảng cáo vào lúc này.");
-                        return;
-                      }
+                  : () => {
                       const doubled = score * 2;
                       setPendingDoubleScore(doubled);
                       setIsScoreDoubled(true);
@@ -470,11 +454,10 @@ interface GameDecisionOverlayProps {
   onDouble?: () => void;
   onEnd: () => void;
   theme: GameTheme;
-  adPending: boolean;
   t: TFunction;
 }
 
-function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onEnd, theme, adPending, t }: GameDecisionOverlayProps) {
+function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onEnd, theme, t }: GameDecisionOverlayProps) {
   const cardStyle = {
     width: "100%",
     maxWidth: 320,
@@ -494,7 +477,6 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
   const renderRewardButton = (label: string, onClick: () => void) => (
     <Button
       onClick={onClick}
-      disabled={adPending}
       size="md"
       variant="primary"
       style={{
@@ -514,7 +496,6 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
   const renderSecondaryButton = (label: string, onClick: () => void) => (
     <Button
       onClick={onClick}
-      disabled={adPending}
       size="md"
       variant="secondary"
       style={{

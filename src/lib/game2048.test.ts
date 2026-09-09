@@ -265,6 +265,24 @@ describe("removeReviveTiles", () => {
       [2048, 4096, 8192, 16384],
     ]);
   });
+
+  it("removes minimum value tiles as fallback if no 2 or 4 tiles exist", () => {
+    const tiles = fromGrid([
+      [8, 16, 32, 64],
+      [16, 8, 64, 128],
+      [32, 64, 128, 256],
+      [64, 128, 256, 512],
+    ]);
+
+    const result = removeReviveTiles(tiles);
+
+    expect(toMatrix(result)).toEqual([
+      [0, 16, 32, 64],
+      [16, 0, 64, 128],
+      [32, 64, 128, 256],
+      [64, 128, 256, 512],
+    ]);
+  });
 });
 
 describe("tilesToGrid / gridToTiles roundtrip", () => {

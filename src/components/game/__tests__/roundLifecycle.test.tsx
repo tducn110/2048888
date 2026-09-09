@@ -21,14 +21,6 @@ const testTiles: TileCell[] = [
   }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-// Mock audio and ads
-vi.mock("@/integrations/ads/googleH5Ads", () => ({
-  showRewardedVideo: vi.fn(async () => true),
-  bootstrapGoogleH5Ads: vi.fn(async () => true),
-  setGoogleH5AdSound: vi.fn(),
-  isAdBreakActive: vi.fn(() => false),
-}));
-
 // Mock Pixi2048Renderer to avoid canvas/webgl initialization issues in jsdom
 vi.mock("../Pixi2048Renderer", () => {
   return {
@@ -229,6 +221,51 @@ describe("Round Lifecycle & Finalization Boundary", () => {
 
     await act(async () => { buttons()[buttons().length - 1]?.click(); });
     expect(onGameEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls revive and does not prematurely show final score when accepting revive without ads", async () => {
+    const mockRevive = vi.fn();
+    mockedUse2048Game.mockReturnValue({
+      tiles: testTiles,
+      score: 100,
+      scoreDelta: 0,
+      status: "lost",
+      hasReached2048: false,
+      moveCount: 1,
+      move: vi.fn(),
+      reset: vi.fn(),
+      revive: mockRevive,
+      doubleScore: vi.fn(),
+    });
+    const onGameEnd = vi.fn();
+    await act(async () => {
+      root.render(
+        <Game2048
+          bestScore={500}
+          onGameEnd={onGameEnd}
+          onRoundStart={vi.fn()}
+          bgId={1}
+          setBgId={vi.fn()}
+          onSettings={vi.fn()}
+          onDashboard={vi.fn()}
+          playSfx={vi.fn()}
+          audioStatus="ready"
+          unlockAudio={vi.fn()}
+          inputEnabled
+        />
+      );
+    });
+
+    const buttons = () => Array.from(container.querySelectorAll("button")) as HTMLButtonElement[];
+    const continueBtn = buttons()[buttons().length - 2];
+    expect(continueBtn).toBeTruthy();
+
+    await act(async () => {
+      continueBtn?.click();
+    });
+
+    expect(mockRevive).toHaveBeenCalledTimes(1);
+    expect(onGameEnd).not.toHaveBeenCalled();
   });
 
   it("finalizes the base score when ending without x2", async () => {
