@@ -1,19 +1,19 @@
-/**
- * Shared types for the 2048 Wink integration.
- * Public, redacted types for the 2048 Wink iframe integration.
- */
-
+export type WinkStatus = 'connecting' | 'connected' | 'online' | 'standalone';
 export type WinkMode = 'wink' | 'offline';
+export type WinkPhase = 'booting' | 'ready_anonymous' | 'ready_authenticated' | 'error';
 
-export type WinkPhase =
-  | 'booting'
-  | 'loading_config'
-  | 'waiting_parent_hello'
-  | 'waiting_session'
-  | 'ready_anonymous'
-  | 'ready_authenticated'
-  | 'renewing'
-  | 'error';
+export type WinkCapability =
+  | 'getLeaderboard'
+  | 'submitScore'
+  | 'complete'
+  | 'track';
+
+export type WinkEvent =
+  | 'pause'
+  | 'resume'
+  | 'mute'
+  | 'unmute'
+  | 'locale';
 
 export type WinkIntegrationErrorCode =
   | 'PARENT_REQUIRED'
@@ -36,49 +36,35 @@ export interface WinkIntegrationError {
   retryable: boolean;
 }
 
-export interface WinkCapabilities {
-  getLeaderboard: boolean;
-  submitScore: boolean;
-  complete: boolean;
-}
-
-export interface RedactedWinkState {
-  phase: WinkPhase;
-  gameId: string | null;
-  environment: 'dev' | 'prod' | 'local' | null;
-  sessionId: string | null;
-  identityType: 'anonymous' | 'user' | null;
-  capabilities: WinkCapabilities;
-  expiresAt: string | null;
-  lifecycle: {
-    paused: boolean;
-    muted: boolean;
-  };
-  error: WinkIntegrationError | null;
-}
-
 export interface WinkLeaderboardEntry {
-  id: string;
-  userId: string | null;
-  isAnonymous: boolean;
+  id?: string;
+  userId?: string | null;
+  isAnonymous?: boolean;
   rank: number;
   score: number;
   playTime: number | null;
   displayName: string | null;
   avatarUrl: string | null;
-  createdAt: string | null;
+  createdAt?: string | null;
   maxTile?: number;
 }
 
-export interface WinkPersonalBest {
-  /** Best run của chính người gọi. Null = anonymous | guest | chưa có điểm. */
+export interface WinkLeaderboard {
+  entries: readonly WinkLeaderboardEntry[];
   me: WinkLeaderboardEntry | null;
+  total?: number;
+}
+
+export interface WinkPlayer {
+  isGuest: boolean;
+  displayName: string | null;
+  avatarUrl: string | null;
 }
 
 export interface WinkSubmitScoreResult {
-  entry: WinkLeaderboardEntry;
+  entry: WinkLeaderboardEntry | null;
   isNewBest: boolean;
-  previousBest: number | null;
+  previousBest?: number | null;
 }
 
 export interface WinkScoreInput {
@@ -86,109 +72,73 @@ export interface WinkScoreInput {
   playTime?: number;
   gameMode?: string;
   counter?: number;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, unknown>;
 }
 
-export interface WinkCompletionInput {
-  roundId: string;
-  playDurationMs?: number;
-  metadata?: Record<string, string | number | boolean>;
-}
-
-export interface RedactedWinkDiagnostics {
-  bridgeVersion: string;
-  protocolVersion: number;
-  phase: WinkPhase;
-  gameId: string | null;
-  environment: 'dev' | 'prod' | 'local' | null;
-  hasSession: boolean;
-  capabilities: WinkCapabilities;
-  lifecycle: {
-    paused: boolean;
-    muted: boolean;
-  };
-  errorCode: WinkIntegrationErrorCode | null;
-}
-
-export interface WinkGameClient {
-  subscribe(listener: (state: RedactedWinkState) => void): () => void;
-  getState(): RedactedWinkState;
-  getCapabilities(): WinkCapabilities;
+export interface WinkSDK {
+  init(): Promise<WinkSDK>;
+  gameplayStart(): void;
+  gameplayStop(): void;
+  submitScore(input: number | WinkScoreInput): Promise<{
+    entry: WinkLeaderboardEntry | null;
+    isNewBest: boolean;
+    previousBest: number | null;
+  }>;
   getLeaderboard(options?: {
     limit?: number;
     offset?: number;
-  }): Promise<readonly WinkLeaderboardEntry[]>;
-  submitScore(input: WinkScoreInput): Promise<WinkSubmitScoreResult>;
-  complete(input: WinkCompletionInput): Promise<void>;
-  onPause(listener: () => void): () => void;
-  onResume(listener: () => void): () => void;
-  onMute(listener: () => void): () => void;
-  onUnmute(listener: () => void): () => void;
-  getPersonalBest(): Promise<WinkPersonalBest>;
-  help(): RedactedWinkDiagnostics;
+  }): Promise<WinkLeaderboard>;
+  getPersonalBest(options?: unknown): Promise<{ me: WinkLeaderboardEntry | null }>;
+  track(eventName: string, properties?: Record<string, unknown>): Promise<void>;
+  on(event: WinkEvent, listener: (data?: any) => void): () => void;
+  can(capability: WinkCapability): boolean;
+  readonly player: WinkPlayer | null;
+  readonly locale: string;
+  readonly muted: boolean;
+  readonly status: WinkStatus;
+  readonly version: string;
+  readonly protocolVersion: number;
+  destroy(): void;
+}
+
+declare global {
+  interface Window {
+    Wink?: WinkSDK;
+  }
 }
 
 export interface WinkIntegration {
+  status: WinkStatus;
+  isReady: boolean;
+  readyPromise: Promise<WinkSDK | null>;
+  sdk: WinkSDK | null;
   mode: WinkMode;
   phase: WinkPhase;
-  capabilities: WinkCapabilities;
-  state: RedactedWinkState;
-  client: WinkGameClient | null;
   hostPaused: boolean;
   parentMuted: boolean;
+  locale: string;
   error: WinkIntegrationError | null;
   leaderboard: readonly WinkLeaderboardEntry[];
+  personalBest: WinkLeaderboardEntry | null;
   playerEntry: WinkLeaderboardEntry | null;
   displayName: string | null;
   bestScore: number;
+  canSubmitScore: boolean;
+  can(capability: WinkCapability): boolean;
+  gameplayStart(): void;
+  gameplayStop(): void;
   refreshLeaderboard(): Promise<void>;
   fetchPersonalBest(): Promise<void>;
   submitFinalScore(input: {
-    roundId: string;
+    roundId?: string;
     score: number;
-    playTimeSec: number;
-    qualifies: boolean;
+    playTimeSec?: number;
+    qualifies?: boolean;
     metadata?: Record<string, string | number | boolean>;
   }): Promise<WinkSubmitScoreResult | null>;
-  completeRound(input: {
-    roundId: string;
-    playDurationMs: number;
+  completeRound(input?: {
+    roundId?: string;
+    playDurationMs?: number;
   }): Promise<void>;
-}
-
-export type RawWinkBridgeState = {
-  phase: WinkPhase;
-  gameId: string | null;
-  environment: 'dev' | 'prod' | 'local' | null;
-  sessionId: string | null;
-  identityType: 'anonymous' | 'user' | null;
-  capabilities: WinkCapabilities;
-  expiresAt: string | null;
-  lifecycle: {
-    paused: boolean;
-    muted: boolean;
-  };
-  error: {
-    code: string;
-    message: string;
-    recoverable: boolean;
-  } | null;
-};
-
-export interface RawWinkBridge {
-  subscribe(listener: (state: RawWinkBridgeState) => void): () => void;
-  getState(): RawWinkBridgeState;
-  getCapabilities(): WinkCapabilities;
-  getLeaderboard(options?: {
-    limit?: number;
-    offset?: number;
-  }): Promise<unknown>;
-  submitScore(input: WinkScoreInput): Promise<unknown>;
-  complete(input: WinkCompletionInput): void;
-  onPause(listener: () => void): () => void;
-  onResume(listener: () => void): () => void;
-  onMute(listener: () => void): () => void;
-  onUnmute(listener: () => void): () => void;
-  getPersonalBest(): Promise<unknown>;
-  help(): unknown;
+  track(eventName: string, properties?: Record<string, unknown>): void;
 }

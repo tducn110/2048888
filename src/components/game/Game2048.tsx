@@ -7,7 +7,7 @@ import GameHeader from "./GameHeader";
 import GameHUD from "./GameHUD";
 import type { Direction } from "@/types";
 import Button from "@/components/ui/Button";
-import { ChartColumnBig, Settings, Loader2, Clapperboard } from "lucide-react";
+import { ChartColumnBig, Settings, Clapperboard } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
@@ -334,55 +334,6 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             paused={rendererPaused}
             celebrationMilestone={celebrationMilestone}
           />
-          {/* Audio Unlock Overlay */}
-          {audioStatus !== "ready" && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                backgroundColor: "rgba(255, 255, 255, 0.8)",
-                backdropFilter: "blur(4px)",
-                WebkitBackdropFilter: "blur(4px)",
-                zIndex: 50,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "column",
-                gap: 12,
-                cursor: "default",
-                borderRadius: 12,
-              }}
-            >
-              {audioStatus === "idle" ? (
-                <Button
-                  type="button"
-                  size="md"
-                  variant="primary"
-                  onClick={unlockAudio}
-                  style={{
-                    minWidth: 132,
-                    color: "#fff8ee",
-                    background: theme.ctaGradient,
-                    borderColor: theme.ctaBorder,
-                    boxShadow: theme.ctaShadow,
-                    animation: "mascotBreathe 2s infinite",
-                  }}
-                >
-                  {t("game.playNow")}
-                </Button>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, color: "var(--wood-dark)" }}>
-                  <Loader2 size={36} className="spinner" style={{ animation: "spin 1s linear infinite" }} />
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
-                    {t("game.loadingAudio")}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           {/* Overlay: LOST (Continue / Final Results) */}
           {status === "lost" && (
             <GameDecisionOverlay

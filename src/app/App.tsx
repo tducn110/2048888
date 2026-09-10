@@ -5,6 +5,8 @@ import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
 import { useWinkIntegration } from "@/integrations/wink/useWinkIntegration";
+import { preloadCriticalResources, preloadNonCriticalResources } from "@/utils/game-loader";
+import { completeGameLoading, onGameLoadingDismiss, setGameLoadingProgress } from "@/utils/loading-controller";
 
 type Screen = "dashboard" | "game" | "settings";
 
@@ -47,8 +49,47 @@ export default function App() {
     }
   }, [winkMode, winkPhase, refreshLeaderboard, fetchPersonalBest]);
 
-  // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
-  const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
+  // Unified bootstrap barrier: Critical Resources + Wink SDK
+  useEffect(() => {
+    setGameLoadingProgress(20);
+
+    const criticalPromise = preloadCriticalResources((pct) => {
+      setGameLoadingProgress(Math.min(95, pct));
+    });
+
+    const winkPromise = wink.readyPromise ?? Promise.resolve(null);
+
+    void Promise.allSettled([criticalPromise, winkPromise]).then(() => {
+      completeGameLoading();
+    });
+  }, [wink.readyPromise]);
+
+  // Unlock audio and trigger idle preloads on loading screen dismiss
+  useEffect(() => {
+    const unbind = onGameLoadingDismiss(() => {
+      void unlockAudio().catch(() => {});
+      preloadNonCriticalResources();
+    });
+    return unbind;
+  }, [unlockAudio]);
+
+  // Fallback: unlock audio on first interaction if autoplay blocked earlier
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      void unlockAudio().catch(() => {});
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("touchstart", handleFirstInteraction);
+    };
+    window.addEventListener("pointerdown", handleFirstInteraction, { passive: true });
+    window.addEventListener("touchstart", handleFirstInteraction, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("touchstart", handleFirstInteraction);
+    };
+  }, [unlockAudio]);
+
+  // inputEnabled: game requires not host-paused AND on game screen
+  const inputEnabled = screen === "game" && !wink.hostPaused;
   const rendererPaused = screen !== "game" || wink.hostPaused;
 
   /**
@@ -63,6 +104,7 @@ export default function App() {
     const id = newRoundId();
     setActiveRoundId(id);
     setRoundStartMs(Date.now());
+    wink.gameplayStart();
   };
 
   /**

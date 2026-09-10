@@ -2,12 +2,9 @@
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, expect, it, vi } from 'vitest';
-import { useWinkIntegration, isOfflineModeEnabled } from '../useWinkIntegration';
-import type {
-  RawWinkBridge,
-  RawWinkBridgeState,
-} from '../types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useWinkIntegration, resetGlobalWinkInit } from '../useWinkIntegration';
+import type { WinkIntegration, WinkSDK } from '../types';
 
 (
   globalThis as typeof globalThis & {
@@ -15,269 +12,158 @@ import type {
   }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const ANONYMOUS_STATE: RawWinkBridgeState = {
-  phase: 'ready_anonymous',
-  gameId: 'b85fd50c-b3eb-4f4a-93eb-3101994e88e9',
-  environment: 'dev',
-  sessionId: '33333333-3333-4333-8333-333333333331',
-  identityType: 'anonymous',
-  capabilities: {
-    getLeaderboard: true,
-    submitScore: false,
-    complete: true,
-  },
-  expiresAt: '2026-07-29T15:05:00.000Z',
-  lifecycle: { paused: false, muted: false },
-  error: null,
-};
-
-const AUTHENTICATED_STATE: RawWinkBridgeState = {
-  ...ANONYMOUS_STATE,
-  phase: 'ready_authenticated',
-  sessionId: '33333333-3333-4333-8333-333333333333',
-  identityType: 'user',
-  capabilities: {
-    getLeaderboard: true,
-    submitScore: true,
-    complete: true,
-  },
-};
-
-function makeBridge(initialState = ANONYMOUS_STATE) {
-  let state = initialState;
-  let listener: ((next: RawWinkBridgeState) => void) | null = null;
-  const unsubscribe = vi.fn(() => {
-    listener = null;
-  });
-  const pauseListeners: Array<() => void> = [];
-  const resumeListeners: Array<() => void> = [];
-  const muteListeners: Array<() => void> = [];
-  const unmuteListeners: Array<() => void> = [];
-
-  const raw = {
-    subscribe: vi.fn((next: (value: RawWinkBridgeState) => void) => {
-      listener = next;
-      next(state);
-      return unsubscribe;
-    }),
-    getState: vi.fn(() => state),
-    getCapabilities: vi.fn(() => state.capabilities),
-    getLeaderboard: vi.fn(async () => ({ entries: [], total: 0 })),
-    getPersonalBest: vi.fn(async () => ({ me: null })),
-    submitScore: vi.fn(async () => ({
-      entry: {
-        id: '1',
-        userId: null,
-        isAnonymous: true,
-        displayName: null,
-        score: 1,
-        playTime: null,
-        gameMode: null,
-        counter: null,
-        metadata: null,
-        rank: 1,
-        createdAt: '2026-07-29T15:00:00.000Z',
-        updatedAt: '2026-07-29T15:00:00.000Z',
-      },
-      isNewBest: true,
-      previousBest: null,
-    })),
-    complete: vi.fn(),
-    onPause: vi.fn((next: () => void) => {
-      pauseListeners.push(next);
-      return vi.fn();
-    }),
-    onResume: vi.fn((next: () => void) => {
-      resumeListeners.push(next);
-      return vi.fn();
-    }),
-    onMute: vi.fn((next: () => void) => {
-      muteListeners.push(next);
-      return vi.fn();
-    }),
-    onUnmute: vi.fn((next: () => void) => {
-      unmuteListeners.push(next);
-      return vi.fn();
-    }),
-    help: vi.fn(() => ({})),
-  } as unknown as RawWinkBridge;
-
-  return {
-    raw,
-    emit(next: RawWinkBridgeState) {
-      state = next;
-      listener?.(next);
-    },
-    pause: () => pauseListeners.forEach((next) => next()),
-    resume: () => resumeListeners.forEach((next) => next()),
-    mute: () => muteListeners.forEach((next) => next()),
-    unmute: () => unmuteListeners.forEach((next) => next()),
-  };
-}
-
-function Probe({ onValue }: { onValue: (value: ReturnType<typeof useWinkIntegration>) => void }) {
-  onValue(useWinkIntegration());
-  return null;
-}
-
-async function mountProbe(
-  bridge: RawWinkBridge | null,
-  onValue: (value: ReturnType<typeof useWinkIntegration>) => void,
-) {
-  if (bridge) {
-    window.WinkBridge = bridge;
-  } else {
-    delete window.WinkBridge;
+function mountHook(): {
+  getLatest: () => WinkIntegration;
+  unmount: () => void;
+} {
+  let latest!: WinkIntegration;
+  function Probe() {
+    latest = useWinkIntegration();
+    return null;
   }
+
   const container = document.createElement('div');
+  document.body.appendChild(container);
   const root: Root = createRoot(container);
-  await act(async () => {
-    root.render(<Probe onValue={onValue} />);
+
+  act(() => {
+    root.render(<Probe />);
   });
+
   return {
-    unmount: async () => {
-      await act(async () => root.unmount());
+    getLatest: () => latest,
+    unmount: () => {
+      act(() => {
+        root.unmount();
+      });
       container.remove();
     },
   };
 }
 
-afterEach(() => {
-  delete window.WinkBridge;
-});
+describe('useWinkIntegration for 02_2048 (Wink SDK v1 Contract)', () => {
+  let originalWink: unknown;
 
-it('subscribes once, projects identity/capabilities, and unregisters on unmount', async () => {
-  const fixture = makeBridge();
-  let latest!: ReturnType<typeof useWinkIntegration>;
-  const mounted = await mountProbe(fixture.raw, (value) => {
-    latest = value;
+  beforeEach(() => {
+    resetGlobalWinkInit();
+    originalWink = window.Wink;
   });
 
-  expect(fixture.raw.subscribe).toHaveBeenCalledTimes(1);
-  expect(fixture.raw.onPause).toHaveBeenCalledTimes(1);
-  expect(fixture.raw.onResume).toHaveBeenCalledTimes(1);
-  expect(fixture.raw.onMute).toHaveBeenCalledTimes(1);
-  expect(fixture.raw.onUnmute).toHaveBeenCalledTimes(1);
-  expect(latest.phase).toBe('ready_anonymous');
-  expect(latest.capabilities.submitScore).toBe(false);
-
-  await act(async () => fixture.emit(AUTHENTICATED_STATE));
-  expect(latest.phase).toBe('ready_authenticated');
-  expect(latest.capabilities.submitScore).toBe(true);
-
-  await mounted.unmount();
-  const subscribeMock = fixture.raw.subscribe as unknown as {
-    mock: { results: Array<{ value: unknown }> };
-  };
-  expect(subscribeMock.mock.results[0]?.value).toHaveBeenCalledTimes(1);
-});
-
-it('projects renewal/error states and parent lifecycle callbacks', async () => {
-  const fixture = makeBridge();
-  let latest!: ReturnType<typeof useWinkIntegration>;
-  const mounted = await mountProbe(fixture.raw, (value) => {
-    latest = value;
+  afterEach(() => {
+    resetGlobalWinkInit();
+    window.Wink = originalWink as WinkSDK;
   });
 
-  await act(async () =>
-    fixture.emit({
-      ...ANONYMOUS_STATE,
-      phase: 'renewing',
-    }),
-  );
-  expect(latest.phase).toBe('renewing');
+  it('runs safely in standalone mode when SDK is absent', async () => {
+    delete (window as any).Wink;
+    const { getLatest, unmount } = mountHook();
 
-  await act(async () =>
-    fixture.emit({
-      ...ANONYMOUS_STATE,
-      phase: 'error',
-      error: {
-        code: 'PARENT_REQUIRED',
-        message: 'Wink bridge requires an iframe parent',
-        recoverable: false,
-      },
-    }),
-  );
-  expect(latest.error).toMatchObject({ code: 'PARENT_REQUIRED' });
+    await act(async () => {
+      await getLatest().readyPromise;
+    });
 
-  await act(async () => {
-    fixture.pause();
-    fixture.mute();
-  });
-  expect(latest.hostPaused).toBe(true);
-  expect(latest.parentMuted).toBe(true);
+    expect(getLatest().isReady).toBe(true);
+    expect(getLatest().status).toBe('standalone');
+    expect(getLatest().mode).toBe('offline');
+    expect(getLatest().canSubmitScore).toBe(false);
+    expect(getLatest().leaderboard).toEqual([]);
 
-  await act(async () => {
-    fixture.resume();
-    fixture.unmute();
-  });
-  expect(latest.hostPaused).toBe(false);
-  expect(latest.parentMuted).toBe(false);
-
-  await mounted.unmount();
-});
-
-it('fails visibly when the bridge is missing', async () => {
-  let latest!: ReturnType<typeof useWinkIntegration>;
-  const mounted = await mountProbe(null, (value) => {
-    latest = value;
+    unmount();
   });
 
-  expect(latest.mode).toBe('wink');
-  expect(latest.phase).toBe('error');
-  expect(latest.error).toMatchObject({
-    code: 'BRIDGE_MISSING',
-    retryable: false,
+  it('connects to window.Wink SDK v1 and handles full lifecycle', async () => {
+    const listeners: Record<string, Function[]> = {
+      pause: [],
+      resume: [],
+      mute: [],
+      unmute: [],
+      locale: [],
+    };
+
+    const mockSdk: WinkSDK = {
+      init: vi.fn(async () => mockSdk),
+      gameplayStart: vi.fn(),
+      gameplayStop: vi.fn(),
+      submitScore: vi.fn(async () => ({
+        entry: { rank: 1, score: 2048, playTime: 60, displayName: 'Peanut Hero', avatarUrl: null },
+        isNewBest: true,
+        previousBest: null,
+      })),
+      getLeaderboard: vi.fn(async () => ({
+        entries: [{ rank: 1, score: 2048, playTime: 60, displayName: 'Peanut Hero', avatarUrl: null }],
+        me: { rank: 1, score: 2048, playTime: 60, displayName: 'Peanut Hero', avatarUrl: null },
+        total: 1,
+      })),
+      getPersonalBest: vi.fn(async () => ({
+        me: { rank: 1, score: 2048, playTime: 60, displayName: 'Peanut Hero', avatarUrl: null },
+      })),
+      track: vi.fn(async () => {}),
+      on: vi.fn((event, cb) => {
+        listeners[event]?.push(cb);
+        return () => {
+          listeners[event] = listeners[event]?.filter((l) => l !== cb);
+        };
+      }),
+      can: vi.fn((cap) => cap === 'submitScore' || cap === 'getLeaderboard' || cap === 'track'),
+      player: { isGuest: false, displayName: 'Peanut Hero', avatarUrl: null },
+      locale: 'vi',
+      muted: false,
+      status: 'online',
+      version: '1.0.0',
+      protocolVersion: 1,
+      destroy: vi.fn(),
+    };
+
+    window.Wink = mockSdk;
+
+    const { getLatest, unmount } = mountHook();
+
+    await act(async () => {
+      await getLatest().readyPromise;
+    });
+
+    expect(mockSdk.init).toHaveBeenCalled();
+    expect(getLatest().status).toBe('online');
+    expect(getLatest().mode).toBe('wink');
+    expect(getLatest().displayName).toBe('Peanut Hero');
+    expect(getLatest().canSubmitScore).toBe(true);
+
+    // Test mute event
+    act(() => {
+      listeners.mute.forEach((cb) => cb());
+    });
+    expect(getLatest().parentMuted).toBe(true);
+
+    // Test pause event
+    act(() => {
+      listeners.pause.forEach((cb) => cb());
+    });
+    expect(getLatest().hostPaused).toBe(true);
+
+    // Test gameplayStart & gameplayStop
+    act(() => {
+      getLatest().gameplayStart();
+      getLatest().gameplayStop();
+    });
+    expect(mockSdk.gameplayStart).toHaveBeenCalledTimes(1);
+    expect(mockSdk.gameplayStop).toHaveBeenCalledTimes(1);
+
+    // Test track
+    act(() => {
+      getLatest().track('move_tile', { direction: 'up' });
+    });
+    expect(mockSdk.track).toHaveBeenCalledWith('move_tile', { direction: 'up' });
+
+    // Test score submission
+    await act(async () => {
+      await getLatest().submitFinalScore({
+        roundId: 'r-1',
+        score: 2048,
+        playTimeSec: 60,
+      });
+    });
+    expect(mockSdk.submitScore).toHaveBeenCalled();
+
+    unmount();
   });
-  await mounted.unmount();
-});
-
-it('allows offline mode only with the explicit development flag', () => {
-  expect(isOfflineModeEnabled({ dev: true, flag: 'true' })).toBe(true);
-  expect(isOfflineModeEnabled({ dev: false, flag: 'true' })).toBe(false);
-  expect(isOfflineModeEnabled({ dev: true, flag: 'false' })).toBe(false);
-  expect(isOfflineModeEnabled({ dev: true, flag: undefined })).toBe(false);
-});
-
-it('does not allow window focus or visibility to override parent pause', async () => {
-  const fixture = makeBridge();
-  let latest!: ReturnType<typeof useWinkIntegration>;
-  const mounted = await mountProbe(fixture.raw, (value) => {
-    latest = value;
-  });
-
-  // Parent pauses the game
-  await act(async () => {
-    fixture.pause();
-  });
-  expect(latest.hostPaused).toBe(true);
-
-  // Window gets focus or visibilitychange while parent is paused
-  await act(async () => {
-    window.dispatchEvent(new Event('focus'));
-    document.dispatchEvent(new Event('visibilitychange'));
-  });
-  // Must STILL be paused because parent is still paused!
-  expect(latest.hostPaused).toBe(true);
-
-  // Only parent resume should unpause
-  await act(async () => {
-    fixture.resume();
-  });
-  expect(latest.hostPaused).toBe(false);
-
-  // A browser blur pauses even when the parent is active.
-  await act(async () => {
-    window.dispatchEvent(new Event('blur'));
-  });
-  expect(latest.hostPaused).toBe(true);
-
-  // Focus cannot clear a still-hidden/document or parent pause; with both
-  // active reasons clear, it does clear the effective pause.
-  await act(async () => {
-    window.dispatchEvent(new Event('focus'));
-  });
-  expect(latest.hostPaused).toBe(false);
-
-  await mounted.unmount();
 });
