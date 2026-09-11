@@ -1,6 +1,30 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
+
+const LANGUAGE_STORAGE_KEY = 'i18nextLng';
+type SupportedLanguage = 'vi' | 'en';
+const isSupportedLanguage = (value: string | null): value is SupportedLanguage =>
+  value === 'vi' || value === 'en';
+
+const getInitialLanguage = (): SupportedLanguage => {
+  if (typeof window === 'undefined') return 'en';
+  try {
+    const value = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isSupportedLanguage(value) ? value : 'en';
+  } catch {
+    return 'en';
+  }
+};
+
+const persistLanguage = (language: string): void => {
+  const normalized = language.split('-')[0];
+  if (typeof window === 'undefined' || !isSupportedLanguage(normalized)) return;
+  try {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
+  } catch {
+    // Optional persistence
+  }
+};
 
 const resources = {
   en: {
@@ -98,20 +122,18 @@ const resources = {
 };
 
 i18n
-  .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
+    lng: getInitialLanguage(),
+    supportedLngs: ['en', 'vi'],
     fallbackLng: 'en',
-    detection: {
-      order: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng',
-      caches: ['localStorage'],
-    },
     interpolation: {
       escapeValue: false
     }
   });
+
+i18n.on('languageChanged', persistLanguage);
 
 export default i18n;
 
