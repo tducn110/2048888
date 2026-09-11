@@ -12,6 +12,7 @@ export const TILE_CONFIG: TileConfig[] = [
   { value: 512,  label: "Bộ Lạc Vàng",          colorBg: "#d99820", colorText: "#2a2418", hasMascot: true  },
   { value: 1024, label: "Linh Vật Làng",         colorBg: "#b85a22", colorText: "#fff8ee", hasMascot: true  },
   { value: 2048, label: "Huyền Thoại",           colorBg: "#2a2418", colorText: "#f0b840", hasMascot: true  },
+  { value: 4096, label: "Tối Cao",               colorBg: "#6a3fa0", colorText: "#fff8ee", hasMascot: true  },
 ];
 
 export function getTileConfig(value: number): TileConfig {

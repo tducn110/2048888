@@ -303,8 +303,8 @@ export class Pixi2048Renderer {
       valueText.style.fill = cfg.colorText;
       valueText.style.fontSize =
         cellSize < 80
-          ? tile.value >= 1000 ? 11 : tile.value >= 100 ? 13 : 14
-          : tile.value >= 1000 ? 14 : tile.value >= 100 ? 16 : 18;
+          ? tile.value >= 1000 ? 14 : tile.value >= 100 ? 13 : 14
+          : tile.value >= 1000 ? 18 : tile.value >= 100 ? 16 : 18;
       valueText.x = cellSize / 2;
       valueText.y = cellSize / 2;
     }
