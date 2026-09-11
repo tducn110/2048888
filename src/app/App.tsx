@@ -4,19 +4,9 @@ import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
 import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
-import { useWinkIntegration } from "@/integrations/wink/useWinkIntegration";
-import { preloadCriticalResources, preloadNonCriticalResources } from "@/utils/game-loader";
-import { completeGameLoading, onGameLoadingDismiss, setGameLoadingProgress } from "@/utils/loading-controller";
+import { useWink } from "@/wink";
 
 type Screen = "dashboard" | "game" | "settings";
-
-// UUID v4 — only used locally to correlate round events until the bridge
-// starts managing roundId ownership from the new full typed client.
-function newRoundId(): string {
-  const cr = globalThis.crypto;
-  if (cr && typeof cr.randomUUID === "function") return cr.randomUUID();
-  return `round-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
-}
 
 export default function App() {
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
@@ -24,9 +14,11 @@ export default function App() {
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const { playSfx, audioStatus, unlockAudio, setParentMuted, setHostPaused, startBgmFromUserGesture } = useGameAudio(musicEnabled, sfxEnabled);
-  // Wink bridge integration — full typed WinkIntegration
-  const wink = useWinkIntegration();
-  const { mode: winkMode, phase: winkPhase, refreshLeaderboard, fetchPersonalBest } = wink;
+  // Keep the Pixi board alive while navigating through Dashboard/Settings so
+  // its renderer and in-progress round do not restart on a screen change.
+  const keepGameMounted = true;
+
+  const wink = useWink();
 
   // Apply parent mute to audio engine without touching user prefs
   useEffect(() => {
@@ -37,121 +29,27 @@ export default function App() {
     setHostPaused(wink.hostPaused);
   }, [wink.hostPaused, setHostPaused]);
 
-  useEffect(() => {
-    if (
-      winkMode === "wink" &&
-      (winkPhase === "ready_anonymous" || winkPhase === "ready_authenticated")
-    ) {
-      void refreshLeaderboard().catch(() => {
-        // The Wink status/error surface owns the visible failure.
-      });
-      void fetchPersonalBest();
-    }
-  }, [winkMode, winkPhase, refreshLeaderboard, fetchPersonalBest]);
-
-  // Unified bootstrap barrier: Critical Resources + Wink SDK
-  useEffect(() => {
-    setGameLoadingProgress(20);
-
-    const criticalPromise = preloadCriticalResources((pct) => {
-      setGameLoadingProgress(Math.min(95, pct));
-    });
-
-    const winkPromise = wink.readyPromise ?? Promise.resolve(null);
-
-    void Promise.allSettled([criticalPromise, winkPromise]).then(() => {
-      completeGameLoading();
-    });
-  }, [wink.readyPromise]);
-
-  // Unlock audio and trigger idle preloads on loading screen dismiss
-  useEffect(() => {
-    const unbind = onGameLoadingDismiss(() => {
-      void unlockAudio().catch(() => {});
-      preloadNonCriticalResources();
-    });
-    return unbind;
-  }, [unlockAudio]);
-
-  // Fallback: unlock audio on first interaction if autoplay blocked earlier
-  useEffect(() => {
-    const handleFirstInteraction = () => {
-      void unlockAudio().catch(() => {});
-      window.removeEventListener("pointerdown", handleFirstInteraction);
-      window.removeEventListener("touchstart", handleFirstInteraction);
-    };
-    window.addEventListener("pointerdown", handleFirstInteraction, { passive: true });
-    window.addEventListener("touchstart", handleFirstInteraction, { passive: true });
-    return () => {
-      window.removeEventListener("pointerdown", handleFirstInteraction);
-      window.removeEventListener("touchstart", handleFirstInteraction);
-    };
-  }, [unlockAudio]);
-
-  // inputEnabled: game requires not host-paused AND on game screen
-  const inputEnabled = screen === "game" && !wink.hostPaused;
-  const rendererPaused = screen !== "game" || wink.hostPaused;
+  // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
+  const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
 
   /**
-   * Called at first tile move — opens a new semantic round.
-   * The roundId is kept alive through any revive step.
+   * Called at first tile move. The round id and its clock belong to the SDK
+   * now — calling this twice abandons the first round rather than reporting a
+   * bogus duration for it, so the revive step needs no guard here.
    */
-  const [activeRoundId, setActiveRoundId] = useState<string | null>(null);
-  const [roundStartMs, setRoundStartMs] = useState<number>(0);
-
   const onRoundStart = () => {
-    if (activeRoundId) return; // already active
-    const id = newRoundId();
-    setActiveRoundId(id);
-    setRoundStartMs(Date.now());
     wink.gameplayStart();
   };
 
-  /**
-   * Called when the player confirms final game-over (declines revive or resets).
-   * Submits score then completes the round — both are independent operations.
-   */
+  /** Called when the player confirms final game-over. */
   const onGameEnd = async (
     score: number,
-    maxTile: number,
+    _maxTile: number,
     playTimeMs: number,
+    _doubled: boolean,
   ) => {
-    const roundId = activeRoundId;
-    setActiveRoundId(null);
-
-    if (!roundId) return;
-
-    const playTimeSec = Math.round(playTimeMs / 1000);
-
-    // Submit score first (independent from completion)
-    try {
-      await wink.submitFinalScore({
-        roundId,
-        score,
-        playTimeSec,
-        qualifies: true,
-        metadata: { roundId, maxTile },
-      });
-      await wink.refreshLeaderboard();
-      await wink.fetchPersonalBest();
-    } catch (err: unknown) {
-      // CAPABILITY_DENIED is expected for anonymous — already handled by the
-      // hook setting the error state. Log unexpected errors only.
-      const code = (err as { code?: string })?.code;
-      if (code !== "CAPABILITY_DENIED") {
-        console.error("[Wink] submitFinalScore failed", err);
-      }
-    }
-
-    // Complete the round independently
-    try {
-      await wink.completeRound({
-        roundId,
-        playDurationMs: Math.max(0, playTimeMs ?? Date.now() - roundStartMs),
-      });
-    } catch (err: unknown) {
-      console.error("[Wink] completeRound failed", err);
-    }
+    wink.gameplayStop();
+    await wink.submitScore(score, Math.round(playTimeMs / 1000));
   };
 
   return (
@@ -172,6 +70,30 @@ export default function App() {
       position: "relative",
     }}>
       <CountrysideBackdrop themeId={bgId} />
+
+      {/* Wink error banner (visible failure for CAPABILITY_DENIED etc.) */}
+      {wink.error && wink.error.code === "CAPABILITY_DENIED" && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 100,
+            background: "rgba(180,30,30,0.92)",
+            color: "#fff",
+            padding: "8px 20px",
+            borderRadius: 8,
+            fontSize: 13,
+            maxWidth: "90vw",
+            textAlign: "center",
+          }}
+        >
+          {wink.error.message}
+        </div>
+      )}
 
       {/* Main content */}
       <main className={screen === "game" ? "app-main app-main--game" : "app-main"} style={{
@@ -198,25 +120,26 @@ export default function App() {
           />
         )}
 
-        <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
-          <Game2048
-            bestScore={wink.bestScore}
-            onGameEnd={onGameEnd}
-            onRoundStart={onRoundStart}
-            bgId={bgId}
-            setBgId={setBgId}
-            onSettings={() => setScreen("settings")}
-            onDashboard={() => setScreen("dashboard")}
-            playSfx={playSfx}
-            audioStatus={audioStatus}
-            unlockAudio={unlockAudio}
-            inputEnabled={inputEnabled}
-            rendererPaused={rendererPaused}
-          />
-        </div>
+        {keepGameMounted && (
+          <>
+            <div className="game-screen-slot" style={{ display: screen === "game" ? "block" : "none", width: "100%" }}>
+              <Game2048
+                bestScore={wink.bestScore}
+                onGameEnd={onGameEnd}
+                onRoundStart={onRoundStart}
+                bgId={bgId}
+                setBgId={setBgId}
+                onSettings={() => setScreen("settings")}
+                onDashboard={() => setScreen("dashboard")}
+                playSfx={playSfx}
+                audioStatus={audioStatus}
+                unlockAudio={unlockAudio}
+                inputEnabled={inputEnabled}
+              />
+            </div>
 
-        {screen === "settings" && (
-          <Settings
+            {screen === "settings" && (
+              <Settings
                 musicEnabled={musicEnabled}
                 sfxEnabled={sfxEnabled}
                 onMusicChange={(enabled) => {
@@ -227,7 +150,9 @@ export default function App() {
                 }}
                 onSfxChange={setSfxEnabled}
                 onBack={() => setScreen("game")}
-          />
+              />
+            )}
+          </>
         )}
       </main>
     </div>

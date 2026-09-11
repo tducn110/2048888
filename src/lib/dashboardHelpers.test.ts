@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BADGE_COLORS, buildRemoteModel } from "./dashboardHelpers";
-import type { WinkLeaderboardEntry } from "@/integrations/wink/types";
+import type { WinkLeaderboardEntry } from "@/wink";
 
 describe("dashboardHelpers", () => {
   const dummyT = (key: string) => (key === "dashboard.anonymous" ? "Ẩn danh" : "Người chơi");
@@ -83,4 +83,3 @@ describe("dashboardHelpers", () => {
     });
   });
 });
-

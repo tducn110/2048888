@@ -38,14 +38,14 @@ import { fileURLToPath } from 'node:url';
 
 // Everything the game fetches at runtime is worth warming; everything the
 // browser will not reuse is not. Documents are excluded because the frame that
-// matters loads its own; the bridge and the runtime config are excluded because
-// they are fetched before any of this and are already tiny.
-const SKIP_EXACT = new Set([
-  'wink-warm.html',
-  'wink-bridge.js',
-  'wink-bridge.lock.json',
-  'wink-runtime-config.json',
-]);
+// matters loads its own.
+//
+// The bridge and the runtime config used to be listed here too. They are gone:
+// the SDK is fetched from sdk.winkgames.fun, which this page could not warm
+// even if it wanted to — a cross-origin script is a different cache entry from
+// a different partition, and it is one small file the platform serves to every
+// game anyway.
+const SKIP_EXACT = new Set(['wink-warm.html']);
 const SKIP_EXTENSIONS = new Set(['.html', '.map', '.txt', '.md']);
 
 // A ceiling on what one warm slide may pull. Phase A left these games at 6–10MB,

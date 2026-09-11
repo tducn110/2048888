@@ -1,4 +1,4 @@
-import type { WinkLeaderboardEntry } from "@/integrations/wink/types";
+import type { WinkLeaderboardEntry } from "@/wink";
 
 export const BADGE_COLORS = [
   { bg: "#f0b840", border: "#c8941a", text: "#2a2418", label: "Vang" },

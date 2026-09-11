@@ -48,12 +48,13 @@ vi.mock("@/hooks/useGameAudio", () => ({
     setParentMuted: vi.fn(), setHostPaused: vi.fn(), startBgmFromUserGesture: vi.fn(),
   }),
 }));
-vi.mock("@/integrations/wink/useWinkIntegration", () => ({
-  useWinkIntegration: () => ({
-    mode: "offline", phase: "offline", hostPaused: false, parentMuted: false,
-    error: null, leaderboard: [], playerEntry: null, bestScore: 0,
-    refreshLeaderboard: vi.fn(async () => {}), fetchPersonalBest: vi.fn(async () => {}),
-    submitFinalScore: vi.fn(async () => null), completeRound: vi.fn(async () => {}),
+vi.mock("@/wink", () => ({
+  useWink: () => ({
+    hostPaused: false, parentMuted: false, error: null,
+    leaderboard: [], playerEntry: null, bestScore: 0,
+    refreshLeaderboard: vi.fn(async () => {}),
+    submitScore: vi.fn(async () => {}),
+    gameplayStart: vi.fn(), gameplayStop: vi.fn(),
   }),
 }));
 
