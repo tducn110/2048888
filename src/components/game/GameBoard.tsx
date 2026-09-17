@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { TileCell, Direction } from "@/types";
 import { Pixi2048Renderer } from "./Pixi2048Renderer";
+import { useTranslation } from "react-i18next";
 
 interface GameBoardProps {
   tiles: TileCell[];
@@ -11,6 +12,7 @@ interface GameBoardProps {
 }
 
 export default function GameBoard({ tiles, background, paused = false, celebrationMilestone }: GameBoardProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Pixi2048Renderer | null>(null);
   const pausedRef = useRef(paused);
@@ -109,7 +111,7 @@ export default function GameBoard({ tiles, background, paused = false, celebrati
         userSelect: "none",
         overflow: "hidden", // Important for PixiJS canvas rounded corners fallback
       }}
-      aria-label="Bàn chơi 2048"
+      aria-label={t("game.board", "2048 Game Board")}
       role="grid"
     />
   );

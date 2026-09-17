@@ -19,7 +19,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import i18n, { setOnlineSession } from "@/i18n";
 
 /** One row of the board. Shaped by the platform, not by this game. */
 export interface WinkLeaderboardEntry {
@@ -57,7 +56,7 @@ interface WinkApi {
   getLeaderboard(options?: { limit?: number; offset?: number }): Promise<WinkLeaderboard>;
   getPersonalBest(): Promise<WinkPersonalBest>;
   on(event: WinkEvent, listener: (value?: string) => void): () => void;
-  can(capability: "getLeaderboard" | "submitScore" | "complete"): boolean;
+  can(capability: "getLeaderboard" | "submitScore"): boolean;
   readonly status: "connecting" | "connected" | "online" | "standalone";
 }
 
@@ -95,18 +94,6 @@ function asWinkError(value: unknown): WinkError {
 
 /** How many rows the dashboard shows. */
 const BOARD_LIMIT = 10;
-const SUPPORTED_LOCALES = new Set(["vi", "en"]);
-
-function applyLocale(locale?: string) {
-  const normalized = locale?.split("-")[0] ?? "en";
-  const selected = SUPPORTED_LOCALES.has(normalized) ? normalized : "en";
-
-  if (typeof document !== "undefined") {
-    document.documentElement.lang = selected;
-  }
-  setOnlineSession(true);
-  void i18n.changeLanguage(selected);
-}
 
 function resolveWinkApi(initialized: WinkApi | void): WinkApi {
   if (initialized && typeof initialized.getLeaderboard === "function") {
@@ -203,7 +190,6 @@ export function useWink(): WinkIntegration {
       if (!live || !sdk) return;
       sdkRef.current = sdk;
       setParentMuted(Boolean(sdk.muted));
-      applyLocale(sdk.locale);
       // Bound after init because `on` replays a pause or a mute that already
       // happened — binding earlier would miss a parent that paused us during
       // the handshake.
@@ -211,7 +197,8 @@ export function useWink(): WinkIntegration {
       detach.push(sdk.on("resume", () => setHostPaused(false)));
       detach.push(sdk.on("mute", () => setParentMuted(true)));
       detach.push(sdk.on("unmute", () => setParentMuted(false)));
-      detach.push(sdk.on("locale", (locale) => applyLocale(locale)));
+      // ponytail: game i18n owns language authority (English default, manual user toggle). Drain host event:
+      detach.push(sdk.on("locale", () => {}));
       void refreshLeaderboard();
     });
 

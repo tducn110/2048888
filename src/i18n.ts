@@ -4,11 +4,6 @@ import { initReactI18next } from 'react-i18next';
 export const LANGUAGE_STORAGE_KEY = '02-2048-language';
 const LEGACY_STORAGE_KEYS = ['i18nextLng'];
 
-export let isOnlineSession = false;
-export const setOnlineSession = (online: boolean): void => {
-  isOnlineSession = online;
-};
-
 type SupportedLanguage = 'vi' | 'en';
 export const isSupportedLanguage = (value: string | null): value is SupportedLanguage =>
   value === 'vi' || value === 'en';
@@ -23,7 +18,9 @@ export const getInitialLanguage = (): SupportedLanguage => {
       if (isSupportedLanguage(legacyValue)) {
         try {
           window.localStorage.setItem(LANGUAGE_STORAGE_KEY, legacyValue);
-        } catch {}
+        } catch {
+          // ignore migration storage write failure
+        }
         return legacyValue;
       }
     }
@@ -34,11 +31,13 @@ export const getInitialLanguage = (): SupportedLanguage => {
 };
 
 export const persistLanguage = (language: string): void => {
-  if (isOnlineSession) return;
   const normalized = language.split('-')[0];
   if (typeof window === 'undefined' || !isSupportedLanguage(normalized)) return;
   try {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, normalized);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = normalized;
+    }
   } catch {
     // Optional persistence
   }
@@ -87,7 +86,8 @@ const resources = {
         "hudScore": "Score",
         "hudBest": "Best",
         "hudInstruction": "Join numbers to 2048!",
-        "hudRestart": "Restart"
+        "hudRestart": "Restart",
+        "board": "2048 Game Board"
       }
     }
   },
@@ -133,17 +133,23 @@ const resources = {
         "hudScore": "Điểm",
         "hudBest": "Tốt nhất",
         "hudInstruction": "Ghép số tới 2048!",
-        "hudRestart": "Gỡ lại"
+        "hudRestart": "Gỡ lại",
+        "board": "Bàn chơi 2048"
       }
     }
   }
 };
 
+const initialLanguage = getInitialLanguage();
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = initialLanguage;
+}
+
 i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: getInitialLanguage(),
+    lng: initialLanguage,
     supportedLngs: ['en', 'vi'],
     fallbackLng: 'en',
     interpolation: {

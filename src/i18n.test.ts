@@ -37,4 +37,16 @@ describe("i18n configuration and persistence", () => {
     expect(getInitialLanguage()).toBe("vi");
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("vi");
   });
+
+  it("falls back to 'en' when storage contains invalid language", () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, "invalid-lang");
+    expect(getInitialLanguage()).toBe("en");
+  });
+
+  it("updates document.documentElement.lang on language change", async () => {
+    await i18n.changeLanguage("vi");
+    expect(document.documentElement.lang).toBe("vi");
+    await i18n.changeLanguage("en");
+    expect(document.documentElement.lang).toBe("en");
+  });
 });
