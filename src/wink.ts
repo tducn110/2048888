@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import i18n from "@/i18n";
+import i18n, { setOnlineSession } from "@/i18n";
 
 /** One row of the board. Shaped by the platform, not by this game. */
 export interface WinkLeaderboardEntry {
@@ -104,6 +104,7 @@ function applyLocale(locale?: string) {
   if (typeof document !== "undefined") {
     document.documentElement.lang = selected;
   }
+  setOnlineSession(true);
   void i18n.changeLanguage(selected);
 }
 
@@ -115,6 +116,7 @@ function resolveWinkApi(initialized: WinkApi | void): WinkApi {
 }
 
 export interface WinkIntegration {
+  readyPromise: Promise<void>;
   hostPaused: boolean;
   parentMuted: boolean;
   leaderboard: readonly WinkLeaderboardEntry[];
@@ -127,9 +129,32 @@ export interface WinkIntegration {
   gameplayStop(): void;
 }
 
+let globalInitPromise: Promise<WinkApi> | null = null;
+let globalReadyPromise: Promise<void> | null = null;
+let boundWinkInstance: unknown = null;
+
+function getWinkInitPromise(): Promise<WinkApi> {
+  const currentWink = typeof window !== "undefined" ? window.Wink : undefined;
+  if (!globalInitPromise || boundWinkInstance !== currentWink) {
+    boundWinkInstance = currentWink;
+    globalInitPromise = Promise.resolve()
+      .then(() => (typeof window !== "undefined" && window.Wink?.init ? window.Wink.init() : undefined))
+      .then(resolveWinkApi);
+    globalReadyPromise = globalInitPromise.then(() => undefined).catch(() => undefined);
+  }
+  return globalInitPromise;
+}
+
+function getWinkReadyPromise(): Promise<void> {
+  getWinkInitPromise();
+  return globalReadyPromise ?? Promise.resolve();
+}
+
 export function useWink(): WinkIntegration {
   const sdkRef = useRef<WinkApi | null>(null);
-  const sdkReadyRef = useRef<Promise<WinkApi> | null>(null);
+  const initPromise = getWinkInitPromise();
+  const readyPromise = getWinkReadyPromise();
+
   const [hostPaused, setHostPaused] = useState(false);
   const [parentMuted, setParentMuted] = useState(false);
   const [leaderboard, setLeaderboard] = useState<readonly WinkLeaderboardEntry[]>([]);
@@ -174,13 +199,8 @@ export function useWink(): WinkIntegration {
     let live = true;
     const detach: Array<() => void> = [];
 
-    const sdkReady = Promise.resolve()
-      .then(() => window.Wink.init())
-      .then(resolveWinkApi);
-    sdkReadyRef.current = sdkReady;
-
-    void sdkReady.then((sdk) => {
-      if (!live) return;
+    void initPromise.then((sdk) => {
+      if (!live || !sdk) return;
       sdkRef.current = sdk;
       setParentMuted(Boolean(sdk.muted));
       applyLocale(sdk.locale);
@@ -199,17 +219,16 @@ export function useWink(): WinkIntegration {
       live = false;
       for (const off of detach) off();
       sdkRef.current = null;
-      sdkReadyRef.current = null;
     };
-  }, [refreshLeaderboard]);
+  }, [refreshLeaderboard, initPromise]);
 
   const gameplayStart = useCallback(() => {
-    void sdkReadyRef.current?.then((sdk) => sdk.gameplayStart());
-  }, []);
+    void initPromise.then((sdk) => sdk?.gameplayStart?.());
+  }, [initPromise]);
 
   const gameplayStop = useCallback(() => {
-    void sdkReadyRef.current?.then((sdk) => sdk.gameplayStop());
-  }, []);
+    void initPromise.then((sdk) => sdk?.gameplayStop?.());
+  }, [initPromise]);
 
   const submitScore = useCallback(
     async (score: number, playTimeSec: number) => {
@@ -236,6 +255,7 @@ export function useWink(): WinkIntegration {
   );
 
   return {
+    readyPromise,
     hostPaused,
     parentMuted,
     leaderboard,

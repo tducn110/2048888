@@ -1,22 +1,40 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-const LANGUAGE_STORAGE_KEY = 'i18nextLng';
+export const LANGUAGE_STORAGE_KEY = '02-2048-language';
+const LEGACY_STORAGE_KEYS = ['i18nextLng'];
+
+export let isOnlineSession = false;
+export const setOnlineSession = (online: boolean): void => {
+  isOnlineSession = online;
+};
+
 type SupportedLanguage = 'vi' | 'en';
-const isSupportedLanguage = (value: string | null): value is SupportedLanguage =>
+export const isSupportedLanguage = (value: string | null): value is SupportedLanguage =>
   value === 'vi' || value === 'en';
 
-const getInitialLanguage = (): SupportedLanguage => {
+export const getInitialLanguage = (): SupportedLanguage => {
   if (typeof window === 'undefined') return 'en';
   try {
     const value = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    return isSupportedLanguage(value) ? value : 'en';
+    if (isSupportedLanguage(value)) return value;
+    for (const legacyKey of LEGACY_STORAGE_KEYS) {
+      const legacyValue = window.localStorage.getItem(legacyKey);
+      if (isSupportedLanguage(legacyValue)) {
+        try {
+          window.localStorage.setItem(LANGUAGE_STORAGE_KEY, legacyValue);
+        } catch {}
+        return legacyValue;
+      }
+    }
   } catch {
-    return 'en';
+    // Storage read failure fallback
   }
+  return 'en';
 };
 
-const persistLanguage = (language: string): void => {
+export const persistLanguage = (language: string): void => {
+  if (isOnlineSession) return;
   const normalized = language.split('-')[0];
   if (typeof window === 'undefined' || !isSupportedLanguage(normalized)) return;
   try {

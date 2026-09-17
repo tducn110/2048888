@@ -5,6 +5,8 @@ import Dashboard from "@/components/screens/Dashboard";
 import Settings from "@/components/screens/Settings";
 import { useGameAudio } from "@/hooks/useGameAudio";
 import { useWink } from "@/wink";
+import { preloadCriticalResources, preloadNonCriticalResources } from "@/utils/game-loader";
+import { completeGameLoading, onGameLoadingDismiss, setGameLoadingProgress } from "@/utils/loading-controller";
 
 type Screen = "dashboard" | "game" | "settings";
 
@@ -20,6 +22,30 @@ export default function App() {
 
   const wink = useWink();
 
+  // Unified bootstrap barrier: Critical Resources + Wink SDK
+  useEffect(() => {
+    setGameLoadingProgress(20);
+
+    const criticalPromise = preloadCriticalResources((pct) => {
+      setGameLoadingProgress(Math.min(95, pct));
+    });
+
+    const winkPromise = wink.readyPromise ?? Promise.resolve(null);
+
+    void Promise.allSettled([criticalPromise, winkPromise]).then(() => {
+      completeGameLoading();
+    });
+  }, [wink.readyPromise]);
+
+  // Unlock audio and trigger idle preloads on loading screen dismiss
+  useEffect(() => {
+    const unbind = onGameLoadingDismiss(() => {
+      void unlockAudio().catch(() => {});
+      preloadNonCriticalResources();
+    });
+    return unbind;
+  }, [unlockAudio]);
+
   // Apply parent mute to audio engine without touching user prefs
   useEffect(() => {
     setParentMuted(wink.parentMuted);
@@ -29,8 +55,23 @@ export default function App() {
     setHostPaused(wink.hostPaused);
   }, [wink.hostPaused, setHostPaused]);
 
-  // inputEnabled: game requires audio to be ready AND not host-paused AND on game screen
-  const inputEnabled = screen === "game" && audioStatus === "ready" && !wink.hostPaused;
+  // Fallback: unlock audio on first user gesture
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      void unlockAudio().catch(() => {});
+    };
+    window.addEventListener("pointerdown", handleFirstInteraction, { passive: true, once: true });
+    window.addEventListener("touchstart", handleFirstInteraction, { passive: true, once: true });
+    window.addEventListener("keydown", handleFirstInteraction, { passive: true, once: true });
+    return () => {
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("touchstart", handleFirstInteraction);
+      window.removeEventListener("keydown", handleFirstInteraction);
+    };
+  }, [unlockAudio]);
+
+  // inputEnabled: game requires not host-paused AND on game screen
+  const inputEnabled = screen === "game" && !wink.hostPaused;
 
   /**
    * Called at first tile move. The round id and its clock belong to the SDK
@@ -135,6 +176,7 @@ export default function App() {
                 audioStatus={audioStatus}
                 unlockAudio={unlockAudio}
                 inputEnabled={inputEnabled}
+                rendererPaused={wink.hostPaused}
               />
             </div>
 

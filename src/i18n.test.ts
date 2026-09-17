@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import i18n from "@/i18n";
+import i18n, { LANGUAGE_STORAGE_KEY, getInitialLanguage } from "@/i18n";
 
 describe("i18n configuration and persistence", () => {
   beforeEach(() => {
@@ -17,18 +17,24 @@ describe("i18n configuration and persistence", () => {
   it("persists language choice to localStorage when user changes language", async () => {
     await i18n.changeLanguage("vi");
     expect(i18n.language).toBe("vi");
-    expect(localStorage.getItem("i18nextLng")).toBe("vi");
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("vi");
     expect(i18n.t("settings.language")).toBe("Ngôn ngữ");
     expect(i18n.t("game.gameOver")).toBe("Hết cờ!");
   });
 
   it("persists when toggling back to English", async () => {
     await i18n.changeLanguage("vi");
-    expect(localStorage.getItem("i18nextLng")).toBe("vi");
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("vi");
 
     await i18n.changeLanguage("en");
     expect(i18n.language).toBe("en");
-    expect(localStorage.getItem("i18nextLng")).toBe("en");
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("en");
     expect(i18n.t("settings.language")).toBe("Language");
+  });
+
+  it("migrates from legacy storage key if present", () => {
+    localStorage.setItem("i18nextLng", "vi");
+    expect(getInitialLanguage()).toBe("vi");
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("vi");
   });
 });
