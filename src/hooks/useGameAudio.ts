@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const MUSIC_SRC = "/assets/audio-optimized/music.mp3";
 
@@ -226,6 +226,8 @@ function syncAudioPolicy() {
 }
 
 export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
+  const pendingSfxRef = useRef<GameSfx[]>([]);
+  const sfxLoadPromiseRef = useRef<Promise<void> | null>(null);
   const [audioStatus, setAudioStatus] = useState<"idle" | "loading" | "ready">(
     audioUnlocked ? "ready" : "idle",
   );
@@ -256,10 +258,19 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   const playSfx = useCallback((name: GameSfx) => {
     // Check unified authority for SFX playback eligibility
     if (!isSfxActive(policyState)) return;
-    if (!audioCtx || !sfxMuteGain) return;
+
+    // A real gameplay gesture can unlock the context before the first SFX
+    // finishes decoding. Keep that semantic event until the asset is ready.
+    if (!audioCtx || !sfxMuteGain) {
+      pendingSfxRef.current = [...pendingSfxRef.current.slice(-7), name];
+      return;
+    }
 
     const buffer = sfxBuffers[name];
-    if (!buffer) return;
+    if (!buffer) {
+      pendingSfxRef.current = [...pendingSfxRef.current.slice(-7), name];
+      return;
+    }
 
     // Duck BGM on important events (merge/win/lose), not on ordinary moves.
     if (name === "win") {
@@ -362,23 +373,33 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     }
 
     // 2. Async actions (Loading SFX buffers in background without stalling input)
-    const pendingSfxLoads = Object.entries(SFX_SOURCES).map(([key, source]) => {
-      if (sfxBuffers[key as GameSfx]) return Promise.resolve();
-      const src = pickSfxSource(source);
-      return fetch(src)
-        .then((res) => res.arrayBuffer())
-        .then((buffer) => audioCtx?.decodeAudioData(buffer))
-        .then((audioBuffer) => {
-          if (audioBuffer) {
-            sfxBuffers[key as GameSfx] = audioBuffer;
-          }
-        })
-        .catch((e) => console.error("Failed to load sfx", src, e));
-    });
-    void Promise.all(pendingSfxLoads).then(() => setSfxAssetsReady(true));
+    // App and the board can observe the same first gesture. Share one load
+    // promise so that gesture unlock never starts duplicate fetch/decode work.
+    if (!sfxLoadPromiseRef.current) {
+      const pendingSfxLoads = Object.entries(SFX_SOURCES).map(([key, source]) => {
+        if (sfxBuffers[key as GameSfx]) return Promise.resolve();
+        const src = pickSfxSource(source);
+        return fetch(src)
+          .then((res) => res.arrayBuffer())
+          .then((buffer) => audioCtx?.decodeAudioData(buffer))
+          .then((audioBuffer) => {
+            if (audioBuffer) {
+              sfxBuffers[key as GameSfx] = audioBuffer;
+            }
+          })
+          .catch((e) => console.error("Failed to load sfx", src, e));
+      });
+      sfxLoadPromiseRef.current = Promise.all(pendingSfxLoads).then(() => {
+        setSfxAssetsReady(true);
+        const pendingSfx = pendingSfxRef.current.splice(0);
+        pendingSfx.forEach(playSfx);
+      });
+    }
+
+    await sfxLoadPromiseRef.current;
 
     setAudioStatus("ready");
-  }, []);
+  }, [playSfx]);
 
   // Retry pending BGM playback from real user gestures (pointerdown, touchstart, any keydown).
   useEffect(() => {
