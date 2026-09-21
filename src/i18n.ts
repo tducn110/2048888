@@ -31,9 +31,23 @@ export const persistLanguage = (language: string): void => {
   }
 };
 
+export const formatNumber = (value: number, lang?: string): string => {
+  const current = lang || i18n.resolvedLanguage || i18n.language || 'en';
+  return value.toLocaleString(current.startsWith('vi') ? 'vi-VN' : 'en-US');
+};
+
 const resources = {
   en: {
     translation: {
+      "common": {
+        "back": "← Back"
+      },
+      "wink": {
+        "CAPABILITY_DENIED": "This action is not permitted for the current session.",
+        "SESSION_EXPIRED": "The game session has expired.",
+        "MESSAGE_REJECTED": "Invalid message received from Wink.",
+        "API_NETWORK_ERROR": "Unable to connect to Wink services."
+      },
       "dashboard": {
         "anonymous": "Anonymous Player",
         "player": "Player",
@@ -81,11 +95,20 @@ const resources = {
   },
   vi: {
     translation: {
+      "common": {
+        "back": "← Quay lại"
+      },
+      "wink": {
+        "CAPABILITY_DENIED": "Thao tác này không được cấp quyền cho phiên hiện tại.",
+        "SESSION_EXPIRED": "Phiên chơi đã hết hạn.",
+        "MESSAGE_REJECTED": "Thông điệp từ Wink không hợp lệ.",
+        "API_NETWORK_ERROR": "Không thể kết nối dịch vụ Wink."
+      },
       "dashboard": {
         "anonymous": "Người chơi ẩn danh",
         "player": "Người chơi",
         "yourRecord": "Kỷ Lục Của Bạn",
-        "ranking": "Ranking 1-10",
+        "ranking": "Xếp hạng 1-10",
         "topScore": "Top điểm",
         "noRecords": "Chưa có thành tích. Hãy chơi để thiết lập kỷ lục đầu tiên.",
         "yourRanking": "Bảng xếp hạng của bạn",

@@ -11,6 +11,7 @@ import { ChartColumnBig, Settings, Clapperboard } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
+import { formatNumber } from "@/i18n";
 interface Game2048Props {
   bestScore: number;
   onGameEnd: (score: number, maxTile: number, playTimeMs: number, doubled: boolean) => void;
@@ -515,7 +516,7 @@ function GameDecisionOverlay({ mode, score, onContinue, onDecline, onDouble, onE
                   textShadow: "0 2px 0 rgba(255,255,255,0.6)",
                 }}
               >
-                {score.toLocaleString("vi-VN")}
+                {formatNumber(score)}
               </div>
               <div
                 style={{

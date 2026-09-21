@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import Button from "./Button";
+import { useTranslation } from "react-i18next";
 
 interface ThemedBackButtonProps {
   onClick: () => void;
@@ -8,6 +9,7 @@ interface ThemedBackButtonProps {
 }
 
 export default function ThemedBackButton({ onClick, size = "md", style }: ThemedBackButtonProps) {
+  const { t } = useTranslation();
   return (
     <Button
       onClick={onClick}
@@ -15,7 +17,7 @@ export default function ThemedBackButton({ onClick, size = "md", style }: Themed
       variant="secondary"
       style={style}
     >
-      ← Quay lại
+      {t("common.back")}
     </Button>
   );
 }

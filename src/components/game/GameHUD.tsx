@@ -2,6 +2,7 @@ import Button from "@/components/ui/Button";
 import type { GameTheme } from "./gameThemes";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { formatNumber } from "@/i18n";
 
 interface GameHUDProps {
   score: number;
@@ -169,7 +170,7 @@ function ScoreCard({
         aria-live="polite"
         aria-atomic="true"
       >
-        {value.toLocaleString("vi-VN")}
+        {formatNumber(value)}
       </span>
       {delta != null && delta > 0 && (
         <span

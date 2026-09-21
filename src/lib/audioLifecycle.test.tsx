@@ -248,10 +248,46 @@ describe("Audio Policy & Lifecycle Authority", () => {
         { capture: true }
       );
       expect(removeEventSpy).toHaveBeenCalledWith(
+        "touchstart",
+        expect.any(Function),
+        { capture: true }
+      );
+      expect(removeEventSpy).toHaveBeenCalledWith(
+        "touchend",
+        expect.any(Function),
+        { capture: true }
+      );
+      expect(removeEventSpy).toHaveBeenCalledWith(
         "keydown",
         expect.any(Function),
         { capture: true }
       );
+    });
+
+    it("unlocks audio on arrow keydown, touchstart, and touchend events", async () => {
+      const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play");
+
+      await act(async () => {
+        root.render(<TestAudioComponent />);
+      });
+
+      // User presses ArrowUp to move a tile
+      act(() => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }));
+      });
+      expect(playSpy).toHaveBeenCalled();
+
+      // Touchstart event on board
+      act(() => {
+        document.dispatchEvent(new Event("touchstart"));
+      });
+      expect(playSpy).toHaveBeenCalled();
+
+      // Touchend event on swipe finish
+      act(() => {
+        document.dispatchEvent(new Event("touchend"));
+      });
+      expect(playSpy).toHaveBeenCalled();
     });
   });
 });

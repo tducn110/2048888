@@ -4,6 +4,7 @@ import { BADGE_COLORS, buildRemoteModel, type RankedLeaderboardEntry } from "@/l
 import type { WinkLeaderboardEntry } from "@/wink";
 import ThemedBackButton from "@/components/ui/ThemedBackButton";
 import { useTranslation } from "react-i18next";
+import { formatNumber } from "@/i18n";
 
 interface DashboardProps {
   bestScore: number;
@@ -56,7 +57,7 @@ export default function Dashboard({
           {t('dashboard.yourRecord')}
         </div>
         <div style={{ fontSize: 32, lineHeight: 1.05, fontWeight: 800, color: "var(--orange-cta-edge)", fontFamily: "'Be Vietnam Pro', sans-serif" }}>
-          {bestScore.toLocaleString("vi-VN")}
+          {formatNumber(bestScore)}
         </div>
       </div>
 
@@ -200,7 +201,7 @@ function RankingRow({
       </div>
 
       <div style={{ color: "var(--orange-cta-edge)", fontSize: 13, fontWeight: 800, textAlign: "right" }}>
-        {entry.score > 0 ? entry.score.toLocaleString("vi-VN") : t('dashboard.none')}
+        {entry.score > 0 ? formatNumber(entry.score) : t('dashboard.none')}
       </div>
     </div>
   );

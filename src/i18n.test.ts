@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import i18n, { LANGUAGE_STORAGE_KEY, getInitialLanguage } from "@/i18n";
+import i18n, { LANGUAGE_STORAGE_KEY, getInitialLanguage, formatNumber } from "@/i18n";
 
 describe("i18n configuration and persistence", () => {
   beforeEach(() => {
@@ -44,5 +44,25 @@ describe("i18n configuration and persistence", () => {
     expect(document.documentElement.lang).toBe("vi");
     await i18n.changeLanguage("en");
     expect(document.documentElement.lang).toBe("en");
+  });
+
+  it("provides correct common.back translations and ranking labels", async () => {
+    await i18n.changeLanguage("en");
+    expect(i18n.t("common.back")).toBe("← Back");
+    expect(i18n.t("dashboard.ranking")).toBe("Ranking 1-10");
+    expect(i18n.t("wink.CAPABILITY_DENIED")).toBe("This action is not permitted for the current session.");
+
+    await i18n.changeLanguage("vi");
+    expect(i18n.t("common.back")).toBe("← Quay lại");
+    expect(i18n.t("dashboard.ranking")).toBe("Xếp hạng 1-10");
+    expect(i18n.t("wink.CAPABILITY_DENIED")).toBe("Thao tác này không được cấp quyền cho phiên hiện tại.");
+  });
+
+  it("formats numbers according to active language locale", async () => {
+    await i18n.changeLanguage("en");
+    expect(formatNumber(1024)).toBe("1,024");
+
+    await i18n.changeLanguage("vi");
+    expect(formatNumber(1024)).toBe("1.024");
   });
 });

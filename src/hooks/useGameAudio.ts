@@ -297,15 +297,6 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   }, []);
 
   const unlockAudio = useCallback(async () => {
-    if (audioUnlocked && audioCtx) {
-      setAudioStatus("ready");
-      if (audioCtx.state === "suspended") {
-        audioCtx.resume().catch(() => {});
-      }
-      return;
-    }
-    setAudioStatus("loading");
-
     // 1. Sync actions for iOS / Mobile WebKit
     const AudioContextClass =
       window.AudioContext ||
@@ -365,6 +356,11 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     policyState.unlocked = true;
     syncAudioPolicy();
 
+    // Always start BGM if policy allows and track is not yet playing
+    if (isMusicActive(policyState) && (!bgmElement || bgmElement.paused)) {
+      startBgm(policyState.musicEnabled);
+    }
+
     // 2. Async actions (Loading SFX buffers in background without stalling input)
     const pendingSfxLoads = Object.entries(SFX_SOURCES).map(([key, source]) => {
       if (sfxBuffers[key as GameSfx]) return Promise.resolve();
@@ -384,28 +380,48 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     setAudioStatus("ready");
   }, []);
 
-  // Retry pending BGM playback from real user gestures. Gameplay/UI sounds
-  // must be triggered by their owning semantic events, not by global buttons.
+  // Retry pending BGM playback from real user gestures (pointerdown, touchstart, any keydown).
   useEffect(() => {
-    const retryPendingBgmStart = () => {
-      if (bgmPendingStart && isMusicActive(policyState)) {
+    const handleUserGesture = () => {
+      if (!policyState.unlocked) {
+        policyState.unlocked = true;
+        audioUnlocked = true;
+      }
+      if (audioCtx?.state === "suspended") {
+        audioCtx.resume().catch(() => {});
+      }
+      if (isMusicActive(policyState) && (!bgmElement || bgmElement.paused)) {
         setupBgm();
         startBgm(policyState.musicEnabled);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
-      retryPendingBgmStart();
+      if (event.repeat) return;
+      handleUserGesture();
     };
 
-    document.addEventListener("pointerdown", retryPendingBgmStart, {
+    document.addEventListener("pointerdown", handleUserGesture, {
       capture: true,
+    });
+    document.addEventListener("touchstart", handleUserGesture, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("touchend", handleUserGesture, {
+      capture: true,
+      passive: true,
     });
     document.addEventListener("keydown", handleKeyDown, { capture: true });
 
     return () => {
-      document.removeEventListener("pointerdown", retryPendingBgmStart, {
+      document.removeEventListener("pointerdown", handleUserGesture, {
+        capture: true,
+      });
+      document.removeEventListener("touchstart", handleUserGesture, {
+        capture: true,
+      });
+      document.removeEventListener("touchend", handleUserGesture, {
         capture: true,
       });
       document.removeEventListener("keydown", handleKeyDown, { capture: true });

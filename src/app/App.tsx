@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Game2048 from "@/components/game/Game2048";
 import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
 import Dashboard from "@/components/screens/Dashboard";
@@ -11,6 +12,7 @@ import { completeGameLoading, onGameLoadingDismiss, setGameLoadingProgress } fro
 type Screen = "dashboard" | "game" | "settings";
 
 export default function App() {
+  const { t } = useTranslation();
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
@@ -37,14 +39,13 @@ export default function App() {
     });
   }, [wink.readyPromise]);
 
-  // Unlock audio and trigger idle preloads on loading screen dismiss
+  // Trigger idle preloads on loading screen dismiss
   useEffect(() => {
     const unbind = onGameLoadingDismiss(() => {
-      void unlockAudio().catch(() => {});
       preloadNonCriticalResources();
     });
     return unbind;
-  }, [unlockAudio]);
+  }, []);
 
   // Apply parent mute to audio engine without touching user prefs
   useEffect(() => {
@@ -55,18 +56,20 @@ export default function App() {
     setHostPaused(wink.hostPaused);
   }, [wink.hostPaused, setHostPaused]);
 
-  // Fallback: unlock audio on first user gesture
+  // Unlock audio on first user gesture (pointerdown, touchstart, touchend, keydown)
   useEffect(() => {
     const handleFirstInteraction = () => {
       void unlockAudio().catch(() => {});
     };
-    window.addEventListener("pointerdown", handleFirstInteraction, { passive: true, once: true });
-    window.addEventListener("touchstart", handleFirstInteraction, { passive: true, once: true });
-    window.addEventListener("keydown", handleFirstInteraction, { passive: true, once: true });
+    window.addEventListener("pointerdown", handleFirstInteraction, { capture: true, passive: true, once: true });
+    window.addEventListener("touchstart", handleFirstInteraction, { capture: true, passive: true, once: true });
+    window.addEventListener("touchend", handleFirstInteraction, { capture: true, passive: true, once: true });
+    window.addEventListener("keydown", handleFirstInteraction, { capture: true, passive: true, once: true });
     return () => {
-      window.removeEventListener("pointerdown", handleFirstInteraction);
-      window.removeEventListener("touchstart", handleFirstInteraction);
-      window.removeEventListener("keydown", handleFirstInteraction);
+      window.removeEventListener("pointerdown", handleFirstInteraction, true);
+      window.removeEventListener("touchstart", handleFirstInteraction, true);
+      window.removeEventListener("touchend", handleFirstInteraction, true);
+      window.removeEventListener("keydown", handleFirstInteraction, true);
     };
   }, [unlockAudio]);
 
@@ -132,7 +135,7 @@ export default function App() {
             textAlign: "center",
           }}
         >
-          {wink.error.message}
+          {t(`wink.${wink.error.code}`, { defaultValue: wink.error.message })}
         </div>
       )}
 
