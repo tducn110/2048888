@@ -102,23 +102,29 @@ describe("Round Lifecycle & Finalization Boundary", () => {
   });
 
   it("does not start a round for an invalid swipe", async () => {
+    const mockMove = vi.fn();
+    const unlockAudio = vi.fn();
     mockedUse2048Game.mockReturnValue({
       tiles: testTiles, score: 100, scoreDelta: 0, status: "playing",
-      hasReached2048: false, moveCount: 0, move: vi.fn(), reset: vi.fn(),
+      hasReached2048: false, moveCount: 0, move: mockMove, reset: vi.fn(),
       revive: vi.fn(), doubleScore: vi.fn(),
     });
     const onRoundStart = vi.fn();
+    const playSfx = vi.fn();
     await act(async () => {
       root.render(<Game2048 bestScore={500} onGameEnd={vi.fn()} onRoundStart={onRoundStart}
         bgId={1} setBgId={vi.fn()} onSettings={vi.fn()} onDashboard={vi.fn()}
-        playSfx={vi.fn()} audioStatus="ready" unlockAudio={vi.fn()} inputEnabled />);
+        playSfx={playSfx} audioStatus="ready" unlockAudio={unlockAudio} inputEnabled />);
     });
     const card = container.querySelector(".game-card") as HTMLElement;
     await act(async () => {
       card.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 100, clientY: 100 }));
       card.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, clientX: 140, clientY: 100 }));
     });
+    expect(unlockAudio).toHaveBeenCalled();
+    expect(mockMove).toHaveBeenCalledWith("right");
     expect(onRoundStart).not.toHaveBeenCalled();
+    expect(playSfx).not.toHaveBeenCalled();
   });
 
   it("starts exactly once when moveCount transitions to the first successful move", async () => {

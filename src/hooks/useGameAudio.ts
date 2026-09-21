@@ -7,7 +7,6 @@ const MUSIC_SRC = "/assets/audio-optimized/music.mp3";
 // BGM ducking on merge/win provides clarity for gameplay feedback without sacrificing overall volume.
 const AUDIO_VOLUME = {
   bgm: 0.25,
-  tap: 0.60,
   move: 0.70,
   merge: 0.85,
   lose: 0.80,
@@ -20,7 +19,6 @@ const SFX_SOURCES = {
   merge: { ogg: "/assets/audio-optimized/switch7.ogg", mp3: "/assets/audio-optimized/switch7.mp3" },
   win: { ogg: "/assets/audio-optimized/celebrate.ogg", mp3: "/assets/audio-optimized/celebrate.mp3" },
   lose: { ogg: "/assets/audio-optimized/switch24.ogg", mp3: "/assets/audio-optimized/switch24.mp3" },
-  tap: { ogg: "/assets/audio-optimized/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
 } as const;
 
 export type GameSfx = keyof typeof SFX_SOURCES;
@@ -30,29 +28,7 @@ const SFX_VOLUMES: Record<GameSfx, number> = {
   merge: AUDIO_VOLUME.merge,
   win: AUDIO_VOLUME.win,
   lose: AUDIO_VOLUME.lose,
-  tap: AUDIO_VOLUME.tap,
 };
-
-const BUTTON_SFX_SELECTOR = [
-  "button",
-  "[role='button']",
-  "a[href]",
-  "input[type='button']",
-  "input[type='submit']",
-  "input[type='reset']",
-].join(",");
-
-function shouldPlayButtonSfx(target: EventTarget | null) {
-  if (!(target instanceof Element)) return false;
-
-  const control = target.closest(BUTTON_SFX_SELECTOR);
-  if (!(control instanceof HTMLElement)) return false;
-  if (control.closest("[data-sfx='off']")) return false;
-  if (control.getAttribute("aria-disabled") === "true") return false;
-  if ("disabled" in control && Boolean(control.disabled)) return false;
-
-  return true;
-}
 
 // Global Web Audio API Context.
 // Every playable sound routes through the Web Audio graph — the OS/hardware
@@ -285,7 +261,7 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     const buffer = sfxBuffers[name];
     if (!buffer) return;
 
-    // Duck BGM on important events (merge/win/lose) — not on tap/move
+    // Duck BGM on important events (merge/win/lose), not on ordinary moves.
     if (name === "win") {
       duckBgm(2.4);
     } else if (name === "merge" || name === "lose") {
@@ -408,45 +384,33 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     setAudioStatus("ready");
   }, []);
 
-  // Global button SFX listener
+  // Retry pending BGM playback from real user gestures. Gameplay/UI sounds
+  // must be triggered by their owning semantic events, not by global buttons.
   useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      // Retry a pending BGM start inside this real user gesture
+    const retryPendingBgmStart = () => {
       if (bgmPendingStart && isMusicActive(policyState)) {
         setupBgm();
         startBgm(policyState.musicEnabled);
-      }
-
-      if (shouldPlayButtonSfx(event.target)) {
-        playSfx("tap");
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
-
-      if (bgmPendingStart && isMusicActive(policyState)) {
-        setupBgm();
-        startBgm(policyState.musicEnabled);
-      }
-
-      if (shouldPlayButtonSfx(event.target)) {
-        playSfx("tap");
-      }
+      retryPendingBgmStart();
     };
 
-    document.addEventListener("pointerdown", handlePointerDown, {
+    document.addEventListener("pointerdown", retryPendingBgmStart, {
       capture: true,
     });
     document.addEventListener("keydown", handleKeyDown, { capture: true });
 
     return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, {
+      document.removeEventListener("pointerdown", retryPendingBgmStart, {
         capture: true,
       });
       document.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
-  }, [playSfx]);
+  }, []);
 
   const setParentMuted = useCallback((muted: boolean) => {
     policyState.parentMuted = muted;

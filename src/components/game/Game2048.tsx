@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { use2048Game } from "@/hooks/use2048Game";
@@ -20,7 +20,7 @@ interface Game2048Props {
   onDashboard: () => void;
   playSfx: (name: GameSfx) => void;
   audioStatus: "idle" | "loading" | "ready";
-  unlockAudio: () => void;
+  unlockAudio: () => void | Promise<void>;
   inputEnabled?: boolean;
   rendererPaused?: boolean;
   onScoreDoubled?: (newScore: number) => void;
@@ -40,6 +40,9 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const [showContinue, setShowContinue] = useState(true);
   const [isScoreDoubled, setIsScoreDoubled] = useState(false);
   const [pendingDoubleScore, setPendingDoubleScore] = useState(0);
+  const requestGameplayAudioUnlock = useCallback(() => {
+    void Promise.resolve(unlockAudio()).catch(() => {});
+  }, [unlockAudio]);
   // Explicit round finalizer called by an end-game or manual-reset action.
   const finalizeRound = (scoreToRecord?: number, doubled = isScoreDoubled) => {
     if (!roundStartedRef.current || recordedRef.current) return;
@@ -97,6 +100,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const handleSwipe = (dir: Direction) => {
     if (inputEnabled) {
+      requestGameplayAudioUnlock();
       // The move-count effect starts the round only after the reducer accepts a move.
       move(dir);
     }
@@ -127,6 +131,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
         touchStartRef.current = null;
         return;
       }
+      requestGameplayAudioUnlock();
       touchStartRef.current = { x: clientX, y: clientY };
     };
     const handleMove = (e: Event) => {
@@ -220,7 +225,7 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
       targetElement.removeEventListener("wheel", onWheel as EventListener);
       window.removeEventListener("blur", handleCancel);
     };
-  }, [inputEnabled, status]);
+  }, [inputEnabled, requestGameplayAudioUnlock, status]);
   return (
     <div
       ref={gameCardRef}

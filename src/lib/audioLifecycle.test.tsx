@@ -216,7 +216,6 @@ describe("Audio Policy & Lifecycle Authority", () => {
       expect(() => {
         audioInstance.playSfx("move");
         audioInstance.playSfx("merge");
-        audioInstance.playSfx("tap");
         audioInstance.playSfx("win");
         audioInstance.playSfx("lose");
       }).not.toThrow();
