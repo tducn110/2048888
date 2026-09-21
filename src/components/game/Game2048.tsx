@@ -378,12 +378,13 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
                   <span
                     style={{
                       padding: "12px 24px",
-                      backgroundColor: "var(--wood-dark)",
-                      color: "#fff",
+                      background: theme.ctaGradient,
+                      border: `2px solid ${theme.ctaBorder}`,
+                      color: "#fff7dd",
                       borderRadius: 999,
                       fontWeight: 700,
                       fontSize: 16,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      boxShadow: theme.ctaShadow,
                       animation: "mascotBreathe 2s infinite",
                     }}
                   >
