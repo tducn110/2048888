@@ -7,7 +7,7 @@ import GameHeader from "./GameHeader";
 import GameHUD from "./GameHUD";
 import type { Direction } from "@/types";
 import Button from "@/components/ui/Button";
-import { ChartColumnBig, Settings, Clapperboard } from "lucide-react";
+import { ChartColumnBig, Settings, Clapperboard, Loader2 } from "lucide-react";
 import type { GameSfx } from "@/hooks/useGameAudio";
 import { getMaxTile } from "@/utils/gameLogic";
 import { getGameTheme, getNextGameThemeId, type GameTheme } from "./gameThemes";
@@ -340,6 +340,68 @@ export default function Game2048({ bestScore, onGameEnd, bgId, setBgId, onSettin
             paused={rendererPaused}
             celebrationMilestone={celebrationMilestone}
           />
+
+          {/* The first real gesture unlocks Web Audio before gameplay input. */}
+          {audioStatus !== "ready" && (
+            <button
+              type="button"
+              aria-label={audioStatus === "idle" ? t("game.tapToStartAudio") : t("game.loadingAudio")}
+              disabled={audioStatus !== "idle"}
+              onClick={() => {
+                if (audioStatus === "idle") {
+                  void Promise.resolve(unlockAudio()).catch(() => {});
+                }
+              }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                border: 0,
+                padding: 0,
+                backgroundColor: "rgba(255, 255, 255, 0.8)",
+                backdropFilter: "blur(4px)",
+                WebkitBackdropFilter: "blur(4px)",
+                zIndex: 50,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: 12,
+                cursor: audioStatus === "idle" ? "pointer" : "wait",
+                borderRadius: 12,
+                color: "var(--wood-dark)",
+              }}
+            >
+              {audioStatus === "idle" ? (
+                <>
+                  <span
+                    style={{
+                      padding: "12px 24px",
+                      backgroundColor: "var(--wood-dark)",
+                      color: "#fff",
+                      borderRadius: 999,
+                      fontWeight: 700,
+                      fontSize: 16,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      animation: "mascotBreathe 2s infinite",
+                    }}
+                  >
+                    {t("game.playNow")}
+                  </span>
+                  <span style={{ fontWeight: 600, fontSize: 13, opacity: 0.8 }}>
+                    {t("game.tapToStartAudio")}
+                  </span>
+                </>
+              ) : (
+                <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, fontWeight: 600, fontSize: 14 }}>
+                  <Loader2 size={36} className="spinner" style={{ animation: "spin 1s linear infinite" }} />
+                  {t("game.loadingAudio")}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Overlay: LOST (Continue / Final Results) */}
           {status === "lost" && (
             <GameDecisionOverlay

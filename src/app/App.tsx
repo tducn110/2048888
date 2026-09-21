@@ -56,25 +56,9 @@ export default function App() {
     setHostPaused(wink.hostPaused);
   }, [wink.hostPaused, setHostPaused]);
 
-  // Unlock audio on first user gesture (pointerdown, touchstart, touchend, keydown)
-  useEffect(() => {
-    const handleFirstInteraction = () => {
-      void unlockAudio().catch(() => {});
-    };
-    window.addEventListener("pointerdown", handleFirstInteraction, { capture: true, passive: true, once: true });
-    window.addEventListener("touchstart", handleFirstInteraction, { capture: true, passive: true, once: true });
-    window.addEventListener("touchend", handleFirstInteraction, { capture: true, passive: true, once: true });
-    window.addEventListener("keydown", handleFirstInteraction, { capture: true, passive: true, once: true });
-    return () => {
-      window.removeEventListener("pointerdown", handleFirstInteraction, true);
-      window.removeEventListener("touchstart", handleFirstInteraction, true);
-      window.removeEventListener("touchend", handleFirstInteraction, true);
-      window.removeEventListener("keydown", handleFirstInteraction, true);
-    };
-  }, [unlockAudio]);
-
-  // inputEnabled: game requires not host-paused AND on game screen
-  const inputEnabled = screen === "game" && !wink.hostPaused;
+  // The game-start overlay owns the first audio gesture. Keep gameplay input
+  // locked until that gesture has opened the audio context and loaded SFX.
+  const inputEnabled = screen === "game" && !wink.hostPaused && audioStatus === "ready";
 
   /**
    * Called at first tile move. The round id and its clock belong to the SDK

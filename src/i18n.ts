@@ -84,6 +84,7 @@ const resources = {
         "x2Score": "2X Score",
         "end": "End",
         "playNow": "Play Now",
+        "tapToStartAudio": "Tap to start and enable sound",
         "loadingAudio": "Loading audio...",
         "hudScore": "Score",
         "hudBest": "Best",
@@ -140,6 +141,7 @@ const resources = {
         "x2Score": "X2 Điểm",
         "end": "Kết thúc",
         "playNow": "Chơi ngay",
+        "tapToStartAudio": "Chạm để bắt đầu và bật âm thanh",
         "loadingAudio": "Đang tải âm thanh...",
         "hudScore": "Điểm",
         "hudBest": "Tốt nhất",
@@ -171,4 +173,3 @@ i18n
 i18n.on('languageChanged', persistLanguage);
 
 export default i18n;
-
