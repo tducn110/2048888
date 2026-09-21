@@ -2,7 +2,6 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 export const LANGUAGE_STORAGE_KEY = '02-2048-language';
-const LEGACY_STORAGE_KEYS = ['i18nextLng'];
 
 type SupportedLanguage = 'vi' | 'en';
 export const isSupportedLanguage = (value: string | null): value is SupportedLanguage =>
@@ -13,17 +12,6 @@ export const getInitialLanguage = (): SupportedLanguage => {
   try {
     const value = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     if (isSupportedLanguage(value)) return value;
-    for (const legacyKey of LEGACY_STORAGE_KEYS) {
-      const legacyValue = window.localStorage.getItem(legacyKey);
-      if (isSupportedLanguage(legacyValue)) {
-        try {
-          window.localStorage.setItem(LANGUAGE_STORAGE_KEY, legacyValue);
-        } catch {
-          // ignore migration storage write failure
-        }
-        return legacyValue;
-      }
-    }
   } catch {
     // Storage read failure fallback
   }

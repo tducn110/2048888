@@ -32,11 +32,7 @@ describe("i18n configuration and persistence", () => {
     expect(i18n.t("settings.language")).toBe("Language");
   });
 
-  it("migrates from legacy storage key if present", () => {
-    localStorage.setItem("i18nextLng", "vi");
-    expect(getInitialLanguage()).toBe("vi");
-    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("vi");
-  });
+
 
   it("falls back to 'en' when storage contains invalid language", () => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, "invalid-lang");
