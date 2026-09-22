@@ -4,12 +4,15 @@ const MUSIC_SRC = "/assets/audio-optimized/music.mp3";
 
 // Volume preset: Calibrated against 01_fruit sound design standards.
 // Master is full scale (1.0), with DynamicsCompressor providing safety headroom against clipping.
-// BGM ducking on merge/win provides clarity for gameplay feedback without sacrificing overall volume.
-const AUDIO_VOLUME = {
-  bgm: 0.25,
-  move: 0.70,
-  merge: 0.85,
-  lose: 0.80,
+// BGM at 0.15 sits comfortably in the background without overpowering transient SFX.
+// BGM ducking on merge/win provides clarity for gameplay feedback.
+export const AUDIO_VOLUME = {
+  bgm: 0.15,
+  button: 0.65,
+  tap: 0.65,
+  move: 0.80,
+  merge: 0.90,
+  lose: 0.85,
   win: 0.95,
   master: 1.0,
 } as const;
@@ -19,6 +22,7 @@ const SFX_SOURCES = {
   merge: { ogg: "/assets/audio-optimized/switch7.ogg", mp3: "/assets/audio-optimized/switch7.mp3" },
   win: { ogg: "/assets/audio-optimized/celebrate.ogg", mp3: "/assets/audio-optimized/celebrate.mp3" },
   lose: { ogg: "/assets/audio-optimized/switch24.ogg", mp3: "/assets/audio-optimized/switch24.mp3" },
+  tap: { ogg: "/assets/audio-optimized/click3.ogg", mp3: "/assets/audio-optimized/click3.mp3" },
 } as const;
 
 export type GameSfx = keyof typeof SFX_SOURCES;
@@ -28,7 +32,29 @@ const SFX_VOLUMES: Record<GameSfx, number> = {
   merge: AUDIO_VOLUME.merge,
   win: AUDIO_VOLUME.win,
   lose: AUDIO_VOLUME.lose,
+  tap: AUDIO_VOLUME.tap,
 };
+
+const BUTTON_SFX_SELECTOR = [
+  "button",
+  "[role='button']",
+  "a[href]",
+  "input[type='button']",
+  "input[type='submit']",
+  "input[type='reset']",
+].join(",");
+
+export function shouldPlayButtonSfx(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+
+  const control = target.closest(BUTTON_SFX_SELECTOR);
+  if (!(control instanceof HTMLElement)) return false;
+  if (control.closest("[data-sfx='off']")) return false;
+  if (control.getAttribute("aria-disabled") === "true") return false;
+  if ("disabled" in control && Boolean((control as HTMLButtonElement).disabled)) return false;
+
+  return true;
+}
 
 // Global Web Audio API Context.
 // Every playable sound routes through the Web Audio graph — the OS/hardware
@@ -44,6 +70,104 @@ let bgmStarted = false;
 let bgmPlayPromise: Promise<void> | null = null;
 let audioUnlocked = false;
 let bgmPendingStart = false;
+
+function ensureAudioContext(): AudioContext | null {
+  const AudioContextClass =
+    window.AudioContext ||
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+
+  if (!audioCtx && AudioContextClass) {
+    audioCtx = new AudioContextClass();
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = AUDIO_VOLUME.master;
+
+    const compressor = audioCtx.createDynamicsCompressor();
+    compressor.threshold.value = -6;
+    compressor.knee.value = 6;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.15;
+
+    masterGain.connect(compressor);
+    compressor.connect(audioCtx.destination);
+
+    sfxMuteGain = audioCtx.createGain();
+    sfxMuteGain.connect(masterGain);
+    sfxMuteGain.gain.value = isSfxActive(policyState) ? 1 : 0;
+
+    bgmMuteGain = audioCtx.createGain();
+    bgmMuteGain.connect(masterGain);
+    bgmMuteGain.gain.value = isMusicActive(policyState) ? 1 : 0;
+  }
+  return audioCtx;
+}
+
+let lastButtonSfxTime = 0;
+
+/**
+ * Synthesizes crisp button tap feedback (dual oscillator click+pop)
+ * calibrated to exact 01_fruit standards. Runs with zero network delay.
+ */
+export function playButtonSfx(volume = AUDIO_VOLUME.button): void {
+  const nowMs = Date.now();
+  if (nowMs - lastButtonSfxTime < 80) return;
+  lastButtonSfxTime = nowMs;
+
+  if (!isSfxActive(policyState)) return;
+  ensureAudioContext();
+  if (!audioCtx) return;
+
+  if (audioCtx.state === "suspended") {
+    void audioCtx.resume().catch(() => {});
+  }
+
+  if (typeof audioCtx.createOscillator !== "function") return;
+
+  const now = audioCtx.currentTime;
+  const gain = audioCtx.createGain();
+  const click = audioCtx.createOscillator();
+  const pop = audioCtx.createOscillator();
+
+  click.type = "triangle";
+  click.frequency.setValueAtTime(920, now);
+  click.frequency.exponentialRampToValueAtTime(520, now + 0.055);
+
+  pop.type = "sine";
+  pop.frequency.setValueAtTime(210, now);
+  pop.frequency.exponentialRampToValueAtTime(130, now + 0.08);
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(volume, now + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+  click.connect(gain);
+  pop.connect(gain);
+
+  if (sfxMuteGain) {
+    gain.connect(sfxMuteGain);
+  } else if (masterGain) {
+    gain.connect(masterGain);
+  } else {
+    gain.connect(audioCtx.destination);
+  }
+
+  click.start(now);
+  pop.start(now);
+  click.stop(now + 0.09);
+  pop.stop(now + 0.09);
+
+  setTimeout(() => {
+    try {
+      click.disconnect();
+      pop.disconnect();
+      gain.disconnect();
+    } catch {
+      // already disconnected
+    }
+  }, 120);
+}
 
 const sfxBuffers: Partial<Record<GameSfx, AudioBuffer>> = {};
 
@@ -259,6 +383,11 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     // Check unified authority for SFX playback eligibility
     if (!isSfxActive(policyState)) return;
 
+    if (name === "tap") {
+      playButtonSfx();
+      return;
+    }
+
     // A real gameplay gesture can unlock the context before the first SFX
     // finishes decoding. Keep that semantic event until the asset is ready.
     if (!audioCtx || !sfxMuteGain) {
@@ -308,39 +437,7 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
   }, []);
 
   const unlockAudio = useCallback(async () => {
-    // 1. Sync actions for iOS / Mobile WebKit
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as Window & { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-
-    if (!audioCtx && AudioContextClass) {
-      audioCtx = new AudioContextClass();
-
-      // Master chain: both buses -> masterGain -> compressor -> destination
-      masterGain = audioCtx.createGain();
-      masterGain.gain.value = AUDIO_VOLUME.master;
-
-      const compressor = audioCtx.createDynamicsCompressor();
-      compressor.threshold.value = -6;
-      compressor.knee.value = 6;
-      compressor.ratio.value = 4;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.15;
-
-      masterGain.connect(compressor);
-      compressor.connect(audioCtx.destination);
-
-      // Global Mixer Setup: SFX/BGM buses -> mute gates -> masterGain.
-      sfxMuteGain = audioCtx.createGain();
-      sfxMuteGain.connect(masterGain);
-      sfxMuteGain.gain.value = isSfxActive(policyState) ? 1 : 0;
-
-      bgmMuteGain = audioCtx.createGain();
-      bgmMuteGain.connect(masterGain);
-      bgmMuteGain.gain.value = isMusicActive(policyState) ? 1 : 0;
-    }
-
+    ensureAudioContext();
     setupBgm();
 
     if (audioCtx?.state === "suspended") {
@@ -376,18 +473,24 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     // App and the board can observe the same first gesture. Share one load
     // promise so that gesture unlock never starts duplicate fetch/decode work.
     if (!sfxLoadPromiseRef.current) {
+      const decodedPromises: Record<string, Promise<AudioBuffer | null>> = {};
       const pendingSfxLoads = Object.entries(SFX_SOURCES).map(([key, source]) => {
         if (sfxBuffers[key as GameSfx]) return Promise.resolve();
         const src = pickSfxSource(source);
-        return fetch(src)
-          .then((res) => res.arrayBuffer())
-          .then((buffer) => audioCtx?.decodeAudioData(buffer))
-          .then((audioBuffer) => {
-            if (audioBuffer) {
-              sfxBuffers[key as GameSfx] = audioBuffer;
-            }
-          })
-          .catch((e) => console.error("Failed to load sfx", src, e));
+        if (!decodedPromises[src]) {
+          decodedPromises[src] = fetch(src)
+            .then((res) => res.arrayBuffer())
+            .then((buffer) => (audioCtx ? audioCtx.decodeAudioData(buffer) : null))
+            .catch((e) => {
+              console.error("Failed to load sfx", src, e);
+              return null;
+            });
+        }
+        return decodedPromises[src].then((audioBuffer) => {
+          if (audioBuffer) {
+            sfxBuffers[key as GameSfx] = audioBuffer;
+          }
+        });
       });
       sfxLoadPromiseRef.current = Promise.all(pendingSfxLoads).then(() => {
         setSfxAssetsReady(true);
@@ -401,9 +504,10 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     setAudioStatus("ready");
   }, [playSfx]);
 
-  // Retry pending BGM playback from real user gestures (pointerdown, touchstart, any keydown).
+  // Retry pending BGM playback from real user gestures and trigger button tap SFX
   useEffect(() => {
     const handleUserGesture = () => {
+      ensureAudioContext();
       if (!policyState.unlocked) {
         policyState.unlocked = true;
         audioUnlocked = true;
@@ -411,18 +515,38 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
       if (audioCtx?.state === "suspended") {
         audioCtx.resume().catch(() => {});
       }
-      if (isMusicActive(policyState) && (!bgmElement || bgmElement.paused)) {
+      if (isMusicActive(policyState) && (!bgmElement || bgmElement.paused || bgmPendingStart)) {
         setupBgm();
         startBgm(policyState.musicEnabled);
+      }
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      handleUserGesture();
+      if (shouldPlayButtonSfx(event.target)) {
+        playButtonSfx();
+      }
+    };
+
+    const handleButtonClick = (event: MouseEvent) => {
+      handleUserGesture();
+      if (shouldPlayButtonSfx(event.target)) {
+        playButtonSfx();
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
       handleUserGesture();
+      if ((event.key === "Enter" || event.key === " ") && shouldPlayButtonSfx(event.target)) {
+        playButtonSfx();
+      }
     };
 
-    document.addEventListener("pointerdown", handleUserGesture, {
+    document.addEventListener("pointerdown", handlePointerDown, {
+      capture: true,
+    });
+    document.addEventListener("click", handleButtonClick, {
       capture: true,
     });
     document.addEventListener("touchstart", handleUserGesture, {
@@ -436,7 +560,10 @@ export function useGameAudio(musicEnabled: boolean, sfxEnabled: boolean) {
     document.addEventListener("keydown", handleKeyDown, { capture: true });
 
     return () => {
-      document.removeEventListener("pointerdown", handleUserGesture, {
+      document.removeEventListener("pointerdown", handlePointerDown, {
+        capture: true,
+      });
+      document.removeEventListener("click", handleButtonClick, {
         capture: true,
       });
       document.removeEventListener("touchstart", handleUserGesture, {

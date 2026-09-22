@@ -4,9 +4,12 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  AUDIO_VOLUME,
   isMusicActive,
   isSfxActive,
   isBgmPlaybackEligible,
+  playButtonSfx,
+  shouldPlayButtonSfx,
   useGameAudio,
 } from "@/hooks/useGameAudio";
 
@@ -67,6 +70,50 @@ describe("Audio Policy & Lifecycle Authority", () => {
       expect(isBgmPlaybackEligible(false, false, false)).toBe(false);
       expect(isBgmPlaybackEligible(true, true, false)).toBe(false);
       expect(isBgmPlaybackEligible(true, false, true)).toBe(false);
+    });
+
+    it("calibrates audio volume ratio against 01_fruit standards", () => {
+      expect(AUDIO_VOLUME.bgm).toBe(0.15);
+      expect(AUDIO_VOLUME.button).toBe(0.65);
+      expect(AUDIO_VOLUME.move).toBe(0.80);
+      expect(AUDIO_VOLUME.merge).toBe(0.90);
+    });
+
+    it("evaluates shouldPlayButtonSfx targeting rules accurately", () => {
+      const btn = document.createElement("button");
+      expect(shouldPlayButtonSfx(btn)).toBe(true);
+
+      const spanInsideBtn = document.createElement("span");
+      btn.appendChild(spanInsideBtn);
+      expect(shouldPlayButtonSfx(spanInsideBtn)).toBe(true);
+
+      const roleBtn = document.createElement("div");
+      roleBtn.setAttribute("role", "button");
+      expect(shouldPlayButtonSfx(roleBtn)).toBe(true);
+
+      const link = document.createElement("a");
+      link.href = "#";
+      expect(shouldPlayButtonSfx(link)).toBe(true);
+
+      // Disabled button
+      const disabledBtn = document.createElement("button");
+      disabledBtn.disabled = true;
+      expect(shouldPlayButtonSfx(disabledBtn)).toBe(false);
+
+      // Aria-disabled button
+      const ariaDisabledBtn = document.createElement("button");
+      ariaDisabledBtn.setAttribute("aria-disabled", "true");
+      expect(shouldPlayButtonSfx(ariaDisabledBtn)).toBe(false);
+
+      // data-sfx="off" opt-out
+      const optOutBtn = document.createElement("button");
+      optOutBtn.setAttribute("data-sfx", "off");
+      expect(shouldPlayButtonSfx(optOutBtn)).toBe(false);
+
+      // Plain container (board / background)
+      const plainDiv = document.createElement("div");
+      expect(shouldPlayButtonSfx(plainDiv)).toBe(false);
+      expect(shouldPlayButtonSfx(null)).toBe(false);
     });
   });
 
@@ -214,6 +261,7 @@ describe("Audio Policy & Lifecycle Authority", () => {
 
       // Rapid consecutive sound triggers (typical gameplay)
       expect(() => {
+        audioInstance.playSfx("tap");
         audioInstance.playSfx("move");
         audioInstance.playSfx("merge");
         audioInstance.playSfx("win");
@@ -222,9 +270,49 @@ describe("Audio Policy & Lifecycle Authority", () => {
 
       // Restart / reset game and fire sounds again
       expect(() => {
+        audioInstance.playSfx("tap");
         audioInstance.playSfx("move");
         audioInstance.playSfx("merge");
       }).not.toThrow();
+    });
+
+    it("triggers button tap SFX handling on button pointerdown and Enter keydown", async () => {
+      await act(async () => {
+        root.render(<TestAudioComponent />);
+      });
+
+      const button = document.createElement("button");
+      document.body.appendChild(button);
+
+      expect(() => {
+        act(() => {
+          button.dispatchEvent(
+            new MouseEvent("pointerdown", { bubbles: true, cancelable: true })
+          );
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        act(() => {
+          button.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true })
+          );
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        act(() => {
+          button.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+          );
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        playButtonSfx();
+      }).not.toThrow();
+
+      button.remove();
     });
 
     it("removes event listeners cleanly on unmount without leaking handlers", async () => {
@@ -244,6 +332,11 @@ describe("Audio Policy & Lifecycle Authority", () => {
       );
       expect(removeEventSpy).toHaveBeenCalledWith(
         "pointerdown",
+        expect.any(Function),
+        { capture: true }
+      );
+      expect(removeEventSpy).toHaveBeenCalledWith(
+        "click",
         expect.any(Function),
         { capture: true }
       );
