@@ -16,6 +16,7 @@ const harness = vi.hoisted(() => ({
   instanceId: null as number | null,
   gameOnDashboard: null as (() => void) | null,
   dashboardOnPlay: null as (() => void) | null,
+  settingsOnBack: null as (() => void) | null,
 }));
 
 vi.mock("@/components/game/Game2048", () => ({
@@ -40,7 +41,12 @@ vi.mock("@/components/screens/Dashboard", () => ({
   },
 }));
 
-vi.mock("@/components/screens/Settings", () => ({ default: () => <div data-testid="settings" /> }));
+vi.mock("@/components/screens/Settings", () => ({
+  default: (props: { onBack: () => void }) => {
+    harness.settingsOnBack = props.onBack;
+    return <button onClick={props.onBack}>back-from-settings</button>;
+  },
+}));
 vi.mock("@/components/background/CountrysideBackdrop", () => ({ default: () => null }));
 vi.mock("@/hooks/useGameAudio", () => ({
   useGameAudio: () => ({
@@ -97,5 +103,23 @@ describe("App navigation ownership", () => {
     expect(harness.mountCount).toBe(1);
     expect(harness.unmountCount).toBe(0);
     expect(harness.instanceId).toBe(originalInstanceId);
+  });
+
+  it("navigates to settings on lost focus (blur/visibility hidden) and resumes on back", async () => {
+    await act(async () => root.render(<App />));
+    const originalInstanceId = harness.instanceId;
+    expect(container.querySelector('[data-testid="game"]')?.textContent).toBe(`game-${originalInstanceId}`);
+
+    // Lost focus via window blur
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    expect(container.querySelector("button")?.textContent).toBe("back-from-settings");
+    expect(harness.mountCount).toBe(1);
+    expect(harness.instanceId).toBe(originalInstanceId);
+
+    // Click back from settings
+    await act(async () => harness.settingsOnBack?.());
+    expect(container.querySelector('[data-testid="game"]')?.textContent).toBe(`game-${originalInstanceId}`);
   });
 });

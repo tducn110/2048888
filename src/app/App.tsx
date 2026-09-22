@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import Game2048 from "@/components/game/Game2048";
 import CountrysideBackdrop from "@/components/background/CountrysideBackdrop";
 import Dashboard from "@/components/screens/Dashboard";
@@ -12,7 +11,6 @@ import { completeGameLoading, onGameLoadingDismiss, setGameLoadingProgress } fro
 type Screen = "dashboard" | "game" | "settings";
 
 export default function App() {
-  const { t } = useTranslation();
   const [bgId, setBgId] = useState(() => Math.floor(Math.random() * 4) + 1);
   const [screen, setScreen] = useState<Screen>("game");
   const [musicEnabled, setMusicEnabled] = useState(true);
@@ -72,13 +70,46 @@ export default function App() {
     setParentMuted(wink.parentMuted);
   }, [wink.parentMuted, setParentMuted]);
 
+  // Handle lost focus (window blur / tab hidden) -> pause game and open settings screen
   useEffect(() => {
-    setHostPaused(wink.hostPaused);
-  }, [wink.hostPaused, setHostPaused]);
+    const handleLostFocus = () => {
+      setScreen((prev) => (prev === "game" ? "settings" : prev));
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleLostFocus();
+      }
+    };
+
+    window.addEventListener("blur", handleLostFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("blur", handleLostFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  // When host pauses, transition to settings if currently in game
+  useEffect(() => {
+    if (wink.hostPaused) {
+      queueMicrotask(() => {
+        setScreen((prev) => (prev === "game" ? "settings" : prev));
+      });
+    }
+  }, [wink.hostPaused]);
+
+  // Settings screen acts as pause state: pause renderer, disable gameplay input, and pause BGM
+  const isPaused = wink.hostPaused || screen === "settings";
+
+  useEffect(() => {
+    setHostPaused(isPaused);
+  }, [isPaused, setHostPaused]);
 
   // The game-start overlay owns the first audio gesture. Keep gameplay input
   // locked until that gesture has opened the audio context and loaded SFX.
-  const inputEnabled = screen === "game" && !wink.hostPaused && audioStatus === "ready";
+  const inputEnabled = screen === "game" && !isPaused && audioStatus === "ready";
 
   /**
    * Called at first tile move. The round id and its clock belong to the SDK
@@ -94,7 +125,6 @@ export default function App() {
     score: number,
     _maxTile: number,
     playTimeMs: number,
-    _doubled: boolean,
   ) => {
     wink.gameplayStop();
     await wink.submitScore(score, Math.round(playTimeMs / 1000));
@@ -118,30 +148,6 @@ export default function App() {
       position: "relative",
     }}>
       <CountrysideBackdrop themeId={bgId} />
-
-      {/* Wink error banner (visible failure for CAPABILITY_DENIED etc.) */}
-      {wink.error && wink.error.code === "CAPABILITY_DENIED" && (
-        <div
-          role="alert"
-          aria-live="polite"
-          style={{
-            position: "absolute",
-            top: 12,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 100,
-            background: "rgba(180,30,30,0.92)",
-            color: "#fff",
-            padding: "8px 20px",
-            borderRadius: 8,
-            fontSize: 13,
-            maxWidth: "90vw",
-            textAlign: "center",
-          }}
-        >
-          {t(`wink.${wink.error.code}`, { defaultValue: wink.error.message })}
-        </div>
-      )}
 
       {/* Main content */}
       <main className={screen === "game" ? "app-main app-main--game" : "app-main"} style={{
@@ -183,7 +189,7 @@ export default function App() {
                 audioStatus={audioStatus}
                 unlockAudio={unlockAudio}
                 inputEnabled={inputEnabled}
-                rendererPaused={wink.hostPaused}
+                rendererPaused={isPaused}
               />
             </div>
 

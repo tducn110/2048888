@@ -132,11 +132,10 @@ it('follows the parent into pause and mute, and back out', async () => {
   expect(wink().parentMuted).toBe(false);
 });
 
-it('a refused score is shown to the player, in their language', async () => {
-  // The ordinary answer for an anonymous session: refused rather than answered
-  // empty, so nobody is shown a rank that does not exist.
+it('a failed score submission logs a warning without setting a UI error', async () => {
+  const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const { sdk } = installSdk({
-    submitScore: vi.fn(() => Promise.reject(Object.assign(new Error('nope'), { code: 'CAPABILITY_DENIED' }))),
+    submitScore: vi.fn(() => Promise.reject(Object.assign(new Error('nope'), { code: 'NETWORK_ERROR' }))),
   });
   const wink = await mount();
 
@@ -145,8 +144,9 @@ it('a refused score is shown to the player, in their language', async () => {
   });
 
   expect(sdk.submitScore).toHaveBeenCalledWith({ score: 1024, playTime: 42 });
-  expect(wink().error?.code).toBe('CAPABILITY_DENIED');
-  expect(wink().error?.message).toMatch(/không được cấp quyền/);
+  expect(wink().error).toBeNull();
+  expect(consoleSpy).toHaveBeenCalledWith('Wink score submission failed', expect.any(Object));
+  consoleSpy.mockRestore();
 });
 
 it('does not submit a score when the capability is unavailable', async () => {
@@ -160,7 +160,7 @@ it('does not submit a score when the capability is unavailable', async () => {
   });
 
   expect(sdk.submitScore).not.toHaveBeenCalled();
-  expect(wink().error?.code).toBe('CAPABILITY_DENIED');
+  expect(wink().error).toBeNull();
 });
 
 it('a score that lands clears the error and re-reads the board', async () => {

@@ -303,7 +303,6 @@ export function isSfxActive(state: AudioPolicyState = policyState): boolean {
   return (
     state.sfxEnabled &&
     !state.parentMuted &&
-    !state.hostPaused &&
     !state.documentHidden
   );
 }

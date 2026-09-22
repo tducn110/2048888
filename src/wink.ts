@@ -87,7 +87,7 @@ const MESSAGES: Record<string, string> = {
   API_NETWORK_ERROR: "Không thể kết nối dịch vụ Wink.",
 };
 
-function asWinkError(value: unknown): WinkError {
+export function asWinkError(value: unknown): WinkError {
   const code = (value as { code?: string } | null)?.code ?? "API_NETWORK_ERROR";
   return { code, message: MESSAGES[code] ?? MESSAGES.API_NETWORK_ERROR };
 }
@@ -222,8 +222,9 @@ export function useWink(): WinkIntegration {
       const sdk = sdkRef.current;
       if (!sdk) return;
 
+      // DevKit v1 (sec 6): Anonymous player may lack submitScore capability.
+      // This is a valid state; silently skip submission without error banner.
       if (!sdk.can("submitScore")) {
-        setError(asWinkError({ code: "CAPABILITY_DENIED" }));
         return;
       }
 
@@ -232,10 +233,8 @@ export function useWink(): WinkIntegration {
         setError(null);
         await refreshLeaderboard();
       } catch (value) {
-        // Refused rather than answered empty, so the player is never shown a
-        // rank that does not exist. CAPABILITY_DENIED is the ordinary answer
-        // for an anonymous session, and the banner says so.
-        setError(asWinkError(value));
+        // DevKit v1: Log warning on submission failure, do not block UI
+        console.warn("Wink score submission failed", value);
       }
     },
     [refreshLeaderboard],

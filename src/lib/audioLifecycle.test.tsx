@@ -58,8 +58,8 @@ describe("Audio Policy & Lifecycle Authority", () => {
       // Parent/host muted
       expect(isSfxActive({ ...baseState, parentMuted: true })).toBe(false);
 
-      // Host paused
-      expect(isSfxActive({ ...baseState, hostPaused: true })).toBe(false);
+      // Host paused - SFX remains active for pause/settings UI button clicks per Wink contract
+      expect(isSfxActive({ ...baseState, hostPaused: true })).toBe(true);
 
       // Document hidden
       expect(isSfxActive({ ...baseState, documentHidden: true })).toBe(false);
@@ -144,6 +144,12 @@ describe("Audio Policy & Lifecycle Authority", () => {
     });
 
     afterEach(() => {
+      if (audioInstance) {
+        act(() => {
+          audioInstance.setParentMuted(false);
+          audioInstance.setHostPaused(false);
+        });
+      }
       act(() => {
         root.unmount();
       });
@@ -198,7 +204,7 @@ describe("Audio Policy & Lifecycle Authority", () => {
         audioInstance.setHostPaused(true);
       });
       expect(isMusicActive()).toBe(false);
-      expect(isSfxActive()).toBe(false);
+      expect(isSfxActive()).toBe(true);
 
       // Host Resume
       act(() => {
